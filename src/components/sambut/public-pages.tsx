@@ -1,0 +1,902 @@
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  CalendarDays,
+  MapPin,
+  Clock3,
+  Sparkles,
+  Heart,
+  GraduationCap,
+  Flower2,
+  Quote,
+  Download,
+  Printer,
+  Share2,
+  Copy,
+  Check,
+  Ticket,
+  Maximize,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import templeImage from "@/assets/borobudur-dawn.jpg";
+import maheswaraGroupPhoto from "@/assets/mhs.jpeg";
+import medleyMusic from "@/assets/Medley.mp3";
+import {
+  useSambut,
+  blankInvitation,
+  newInvitation,
+  categories,
+  type Category,
+  type Invitation,
+  type Rsvp,
+} from "@/lib/sambut/store";
+import { eventDate, inviteURL } from "@/lib/sambut/utils";
+import { PublicLayout } from "./public-layout";
+import { SectionLabel, ArrowLink, Brand, Badge, RsvpBadge, Empty, copyText } from "./shared";
+export const schedule = [
+  ["08.00 – 09.00", "Sugeng Rawuh", "Registrasi tamu, penyambutan, dan pembukaan gerbang acara."],
+  ["09.00 – 09.30", "Harmoni Pembuka", "Pembukaan dan persembahan seni budaya Nusantara."],
+  ["09.30 – 11.00", "Panggung Prestasi", "Selebrasi karya, potensi, dan pencapaian generasi muda."],
+  ["11.00 – 12.00", "Langkah Bersama", "Penandatanganan MOU, ramah tamah, dan penutupan."],
+];
+function Countdown() {
+  const { data } = useSambut();
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  if (!data.settings.date || now === null)
+    return (
+      <div>
+        <div className="fact-label">MENUJU HARI ISTIMEWA</div>
+        <div className="fact-value">Sebuah perayaan sedang disiapkan</div>
+        <div className="fact-note">Nantikan pengumuman tanggal acara</div>
+      </div>
+    );
+  const diff = Math.max(0, new Date(data.settings.date).getTime() - now);
+  if (!diff)
+    return (
+      <div>
+        <div className="fact-label">HARI ISTIMEWA</div>
+        <div className="fact-value">Waktunya merayakan bersama</div>
+      </div>
+    );
+  const parts = [
+    Math.floor(diff / 86400000),
+    Math.floor(diff / 3600000) % 24,
+    Math.floor(diff / 60000) % 60,
+    Math.floor(diff / 1000) % 60,
+  ];
+  return (
+    <div className="countdown">
+      {parts.map((p, i) => (
+        <div key={i}>
+          {String(p).padStart(2, "0")}
+          <small>{["HARI", "JAM", "MENIT", "DETIK"][i]}</small>
+        </div>
+      ))}
+    </div>
+  );
+}
+export function HomePage() {
+  const { data } = useSambut();
+  const revealRoot = useRef<HTMLElement>(null);
+  const musicRef = useRef<HTMLAudioElement>(null);
+  const [curtainStage, setCurtainStage] = useState<"closed" | "opening" | "done">("closed");
+  const [musicPlaying, setMusicPlaying] = useState(false);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setCurtainStage("done");
+      return;
+    }
+    const openTimer = window.setTimeout(() => setCurtainStage("opening"), 650);
+    const finishTimer = window.setTimeout(() => setCurtainStage("done"), 3350);
+    return () => {
+      window.clearTimeout(openTimer);
+      window.clearTimeout(finishTimer);
+    };
+  }, []);
+  useEffect(() => {
+    const root = revealRoot.current;
+    if (!root) return;
+    const targets = Array.from(root.querySelectorAll<HTMLElement>("[data-reveal]"));
+    if (
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+      !("IntersectionObserver" in window)
+    ) {
+      targets.forEach((target) => target.classList.add("is-visible"));
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries, activeObserver) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            activeObserver.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -35px 0px" },
+    );
+    targets.forEach((target, index) => {
+      target.style.setProperty("--reveal-delay", `${(index % 4) * 85}ms`);
+      observer.observe(target);
+    });
+    return () => observer.disconnect();
+  }, []);
+  function toggleMusic() {
+    const audio = musicRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      void audio.play().catch(() => toast.error("Musik tidak dapat diputar pada peramban ini"));
+    } else {
+      audio.pause();
+    }
+  }
+  return (
+    <PublicLayout>
+      <main className="public-home" ref={revealRoot}>
+        <section className="event-hero">
+          <img
+            className="hero-image"
+            src={templeImage}
+            width={1920}
+            height={1088}
+            alt="Stupa Borobudur dan pegunungan Jawa saat matahari terbit"
+            fetchPriority="high"
+          />
+          <div className="hero-shade" />
+          <div className="hero-bottom-shade" />
+          <div className="page-width hero-content">
+            <div className="hero-edition"></div>
+            <h1>
+              Opening PPDB &
+              <br />
+              SemiFinal <em>Maheswara Maheswari.</em>
+            </h1>
+            <p className="hero-tagline">“{data.settings.tagline}”</p>
+            <p className="hero-description">
+              Merangkai mimpi, merayakan potensi, dan melangkah bersama dalam kehangatan budaya
+              Indonesia.
+            </p>
+            <div className="hero-buttons">
+              <Button asChild size="lg">
+                <a href="#konfirmasi-kehadiran">
+                  Konfirmasi Kehadiran <ArrowUpRight />
+                </a>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="outline-hero">
+                <a href="#rundown-acara">
+                  Detail Acara <ArrowRight />
+                </a>
+              </Button>
+            </div>
+            
+          </div>
+        
+        </section>
+        <section className="event-facts">
+          <div className="page-width facts-grid" data-reveal>
+            <div className="fact">
+              <CalendarDays />
+              <div>
+                <div className="fact-label">WAKTU PERAYAAN</div>
+                <div className="fact-value">{eventDate(data.settings.date)}</div>
+                <div className="fact-note">
+                  {data.settings.date ? "Simpan tanggal istimewanya" : "Informasi resmi menyusul"}
+                </div>
+              </div>
+            </div>
+            <div className="fact">
+              <MapPin />
+              <div>
+                <div className="fact-label">TEMPAT KITA BERTEMU</div>
+                <div className="fact-value">
+                  {data.settings.location || "Lokasi segera diumumkan"}
+                </div>
+                <div className="fact-note">{data.settings.school} · Maheswara Maheswari 2027</div>
+              </div>
+            </div>
+            <div className="fact">
+              <Clock3 />
+              <Countdown />
+            </div>
+          </div>
+        </section>
+        <section className="about-section" id="tentang">
+          <div className="page-width">
+            <div className="home-story-layout">
+              <div className="home-story-heading" data-reveal>
+                <SectionLabel>LEBIH DARI SEBUAH PERAYAAN</SectionLabel>
+                <h2 className="display-heading">
+                  Berakar dalam budaya. Bertumbuh dalam <em>prestasi.</em>
+                </h2>
+              </div>
+              <figure className="home-story-photo" data-reveal>
+                <div className="home-photo-topline">
+                  <span>CATATAN KEBERSAMAAN</span>
+                  <span>MM · 2027</span>
+                </div>
+                <div className="home-photo-image">
+                  <img
+                    src={maheswaraGroupPhoto}
+                    width={1200}
+                    height={900}
+                    alt="Kebersamaan siswa Maheswara Maheswari bersama Metland School"
+                    loading="lazy"
+                  />
+                  <div className="home-photo-stamp" aria-hidden="true">
+                    <strong>MM</strong>
+                    <span>TOGETHER</span>
+                    <small>2027</small>
+                  </div>
+                </div>
+                <figcaption>
+                  <span>Maheswara Maheswari</span>
+                  <small>Tumbuh dan melangkah bersama</small>
+                </figcaption>
+              </figure>
+              <div className="home-story-copy" data-reveal>
+                <p>
+                  Opening PPDB & SemiFinal Maheswara Maheswari 2027 adalah perayaan potensi,
+                  kreativitas, dan langkah baru generasi muda.
+                </p>
+                <p>
+                  Maheswara Maheswari menjadi ruang untuk bertumbuh dalam karakter dan prestasi,
+                  sekaligus merawat budaya Indonesia bersama.
+                </p>
+                <a href="#rundown-acara" className="arrow-link">
+                  Lihat rangkaian acara <ArrowRight size={17} />
+                </a>
+              </div>
+            </div>
+            <div className="values-row">
+              <div className="value-item" data-reveal>
+                <Flower2 />
+                <div>
+                  <h3>Warisan yang Menginspirasi</h3>
+                  <p>Budaya Nusantara sebagai jati diri.</p>
+                </div>
+              </div>
+              <div className="value-item" data-reveal>
+                <GraduationCap />
+                <div>
+                  <h3>Generasi Penuh Potensi</h3>
+                  <p>Merayakan karya dan langkah berprestasi.</p>
+                </div>
+              </div>
+              <div className="value-item" data-reveal>
+                <Heart />
+                <div>
+                  <h3>Kebersamaan yang Berarti</h3>
+                  <p>Momen hangat, kenangan yang melekat.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section className="preview-section" id="rundown-acara">
+          <div className="page-width">
+            <div className="section-top">
+              <div data-reveal>
+                <SectionLabel>RANGKAIAN MOMEN</SectionLabel>
+                <h2 className="display-heading">Setiap momen, punya cerita.</h2>
+              </div>
+              <ArrowLink to="/event/schedule">Lihat jadwal lengkap</ArrowLink>
+            </div>
+            <div className="schedule-preview">
+              {schedule.map(([time, title, text], index) => (
+                <article className="schedule-step" key={title} data-reveal>
+                  <time>{time} WIB</time>
+                  <div className="schedule-marker" aria-hidden="true">
+                    {String(index + 1).padStart(2, "0")}
+                  </div>
+                  <div className="schedule-copy">
+                    <h3>{title}</h3>
+                    <p>{text}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <p className="field-note mt-7" data-reveal>
+              *Rancangan jadwal simulasi. Waktu resmi akan diumumkan panitia.
+            </p>
+          </div>
+        </section>
+        <section className="registration-section" id="konfirmasi-kehadiran">
+          <div className="page-width">
+            <EventRegistrationForm />
+          </div>
+        </section>
+        {curtainStage !== "done" && (
+          <div className={`opening-curtain opening-curtain--${curtainStage}`} aria-hidden="true">
+            <div className="curtain-panel curtain-panel-left" />
+            <div className="curtain-panel curtain-panel-right" />
+            <div className="curtain-centerpiece">
+              <span className="brand-mark">
+                <Sparkles strokeWidth={1.4} />
+              </span>
+              <span>SELAMAT DATANG</span>
+              <strong>{data.settings.name}</strong>
+              <small>Maheswara Maheswari · 2027</small>
+            </div>
+          </div>
+        )}
+        <audio
+          aria-label="Musik pengiring Medley"
+          hidden
+          loop
+          preload="none"
+          ref={musicRef}
+          src={medleyMusic}
+          onPlay={() => setMusicPlaying(true)}
+          onPause={() => setMusicPlaying(false)}
+          onError={() =>
+            toast.error("File Medley.mp3 tidak dapat dimuat atau formatnya tidak didukung")
+          }
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={`music-toggle ${musicPlaying ? "is-playing" : ""}`}
+          aria-label={musicPlaying ? "Matikan musik Medley" : "Putar musik Medley"}
+          aria-pressed={musicPlaying}
+          title={musicPlaying ? "Matikan musik Medley" : "Putar musik Medley"}
+          onClick={toggleMusic}
+        >
+          {musicPlaying ? <VolumeX /> : <Volume2 />}
+        </Button>
+      </main>
+    </PublicLayout>
+  );
+}
+function EventRegistrationForm() {
+  const { save } = useSambut();
+  const navigate = useNavigate();
+  const [category, setCategory] = useState<Category>("SMP");
+  const [name, setName] = useState("");
+  const [institution, setInstitution] = useState("");
+  const [title, setTitle] = useState("");
+  const [phone, setPhone] = useState("");
+  const [rsvp, setRsvp] = useState<Rsvp>("Hadir");
+  const isSchool = category === "SMP";
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const attendeeName = name.trim();
+    const attendeeInstitution = institution.trim();
+    const invitation = newInvitation({
+      ...blankInvitation(),
+      name: isSchool ? attendeeInstitution : attendeeName,
+      category,
+      institution: attendeeInstitution,
+      principal: isSchool ? attendeeName : "",
+      pic: isSchool ? attendeeName : "",
+      title: title.trim(),
+      phone: phone.trim(),
+      quota: 1,
+      members: isSchool
+        ? [
+            {
+              id: crypto.randomUUID(),
+              name: attendeeName,
+              role: "Perwakilan sekolah",
+              present: false,
+            },
+          ]
+        : [],
+      rsvp,
+    });
+    save(invitation);
+    navigate({ to: "/ticket/$code", params: { code: invitation.code } });
+  }
+
+  return (
+    <div className="registration-content">
+      <div className="registration-heading" data-reveal>
+        <SectionLabel>MENJADI BAGIAN DARI CERITA</SectionLabel>
+        <h2>Mari hadir. Mari merayakan.</h2>
+        <p>Isi data singkat untuk menyimpan konfirmasi dan mendapatkan tiket acara.</p>
+      </div>
+      <form className="form-panel registration-form" onSubmit={submit} data-reveal>
+        <div className="form-grid">
+          <label className="field">
+            <span>Jenis undangan</span>
+            <select
+              value={category}
+              onChange={(event) => setCategory(event.target.value as Category)}
+            >
+              {categories.map((item) => (
+                <option key={item} value={item}>
+                  {item === "SMP" ? "Sekolah" : item}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>{isSchool ? "Nama kepala sekolah / perwakilan" : "Nama lengkap"}</span>
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Nama sesuai identitas"
+              required
+            />
+          </label>
+          <label className="field full">
+            <span>{isSchool ? "Nama sekolah" : "Instansi / sekolah"}</span>
+            <input
+              value={institution}
+              onChange={(event) => setInstitution(event.target.value)}
+              placeholder={isSchool ? "Nama sekolah Anda" : "Nama instansi atau sekolah"}
+              required
+            />
+          </label>
+          {(category === "Guru" || category === "VIP") && (
+            <label className="field">
+              <span>Jabatan / gelar (opsional)</span>
+              <input value={title} onChange={(event) => setTitle(event.target.value)} />
+            </label>
+          )}
+          <label className="field">
+            <span>Nomor WhatsApp (opsional)</span>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              placeholder="08xxxxxxxxxx"
+            />
+          </label>
+          <div className="field full">
+            <span>Konfirmasi kehadiran</span>
+            <div className="rsvp-choices">
+              <Button
+                type="button"
+                variant={rsvp === "Hadir" ? "default" : "outline"}
+                aria-pressed={rsvp === "Hadir"}
+                onClick={() => setRsvp("Hadir")}
+              >
+                <Check /> Saya Hadir
+              </Button>
+              <Button
+                type="button"
+                variant={rsvp === "Tidak Hadir" ? "default" : "outline"}
+                aria-pressed={rsvp === "Tidak Hadir"}
+                onClick={() => setRsvp("Tidak Hadir")}
+              >
+                Tidak Hadir
+              </Button>
+            </div>
+          </div>
+        </div>
+        <Button type="submit" className="w-full mt-5">
+          Cari Tiket Saya <Ticket />
+        </Button>
+        <p className="field-note mt-4">
+          Status kehadiran dan data undangan akan tercatat pada daftar admin.
+        </p>
+      </form>
+    </div>
+  );
+}
+const titah = {
+  heading: ["Menjaga Marwah,", "Mencetak Sejarah"],
+  author: "Dr. Darmawan Sunarja, Drs., MM.Par",
+  role: "Kepala Sekolah",
+  id: "Selamat datang di SMK Metland Cibitung. Terima kasih telah menjadi bagian dari Generasi Cinta Prestasi (GCP) yang bukan hanya sekadar capaian akademis, melainkan komitmen untuk memanggul warisan luhur budaya nusantara di tengah pusaran modernitas. Kami memadukan disiplin tinggi dengan tata krama budaya ketimuran untuk memastikan setiap lulusan tidak hanya terampil, tetapi juga berkarakter unggul.",
+  jv: "Sugeng rawuh ing SMK Metland Cibitung. Matur nuwun sampun dados pérangan saking Generasi Cinta Prestasi (GCP). GCP boten namung babagan prestasi, nanging ugi babagan nguri-uri budaya lan nilai-nilai luhur Nusantara ing tengahing perkembangan jaman. Ing sekolah kita, kedisiplinan lan tata krama dados landhesan kangge mbentuk para lulusan ingkang trampil, kompeten, saha gadhah budi pekerti lan karakter ingkang unggul.",
+};
+export function TitahSection() {
+  const { data } = useSambut();
+  const [playing, setPlaying] = useState<"" | "id" | "jv">("");
+  useEffect(() => () => window.speechSynthesis?.cancel(), []);
+  function speak(key: "id" | "jv") {
+    if (!("speechSynthesis" in window)) {
+      toast.error("Peramban ini tidak mendukung suara");
+      return;
+    }
+    window.speechSynthesis.cancel();
+    if (playing === key) {
+      setPlaying("");
+      return;
+    }
+    const utter = new SpeechSynthesisUtterance(key === "id" ? titah.id : titah.jv);
+    utter.lang = key === "id" ? "id-ID" : "jv-ID";
+    utter.rate = 0.94;
+    utter.onend = () => setPlaying("");
+    utter.onerror = () => setPlaying("");
+    setPlaying(key);
+    window.speechSynthesis.speak(utter);
+  }
+  const quotes = [
+    { key: "id" as const, label: "Bahasa Indonesia", text: titah.id },
+    { key: "jv" as const, label: "Basa Jawa", text: titah.jv },
+  ];
+  return (
+    <section className="titah-section">
+      <div className="page-width titah-layout">
+        <figure className="titah-card">
+          <span className="titah-crest">
+            <Sparkles />
+            <strong>{data.settings.school || "SMK Metland"}</strong>
+            <small>Generasi Cinta Prestasi</small>
+          </span>
+          <figcaption>
+            <span className="titah-author">{titah.author}</span>
+            <span className="titah-role">{titah.role}</span>
+          </figcaption>
+        </figure>
+        <div className="titah-body">
+          <SectionLabel>TITAH KEBESARAN</SectionLabel>
+          <h2 className="display-heading">
+            {titah.heading[0]}
+            <br />
+            <em>{titah.heading[1]}</em>
+          </h2>
+          {quotes.map((q) => (
+            <div className="titah-quote" key={q.key}>
+              <div className="quote-head">
+                <span className="quote-lang">
+                  <Quote />
+                  {q.label}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`quote-play ${playing === q.key ? "playing" : ""}`}
+                  onClick={() => speak(q.key)}
+                  aria-label={
+                    playing === q.key
+                      ? `Hentikan suara ${q.label}`
+                      : `Dengarkan titah dalam ${q.label}`
+                  }
+                >
+                  {playing === q.key ? <VolumeX /> : <Volume2 />}
+                  {playing === q.key ? "Hentikan" : "Dengarkan"}
+                </Button>
+              </div>
+              <p>{q.text}</p>
+              <span className="quote-mark" aria-hidden="true">
+                ”
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+export function SchedulePage() {
+  return (
+    <PublicLayout>
+      <main className="page-width inner-page">
+        <SectionLabel>RANGKAIAN ACARA</SectionLabel>
+        <h1 className="page-heading">Momen yang kita nantikan.</h1>
+        <p className="page-intro">
+          Dari sambutan hangat hingga langkah kolaborasi. Setiap bagian dirangkai untuk menghadirkan
+          pengalaman yang berkesan.
+        </p>
+        <div className="subtle-notice">
+          Rancangan jadwal simulasi — tanggal, waktu, dan susunan acara resmi menunggu konfirmasi
+          panitia.
+        </div>
+        <div className="timeline">
+          {schedule.map(([time, title, text], i) => (
+            <div className="timeline-row" key={title}>
+              <time>
+                {time}
+                <br />
+                <small>WIB</small>
+              </time>
+              <div>
+                <SectionLabel>0{i + 1}</SectionLabel>
+                <h3 className="mt-3">{title}</h3>
+                <p>{text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </main>
+    </PublicLayout>
+  );
+}
+export function MessagesPage() {
+  const { data, addMessage } = useSambut();
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    addMessage({
+      name: String(f.get("name")).trim(),
+      text: String(f.get("text")).trim(),
+      category: "Tamu Maheswara Maheswari 2027",
+    });
+    e.currentTarget.reset();
+    toast.success("Pesan Anda telah ditambahkan");
+  }
+  return (
+    <PublicLayout>
+      <main className="page-width inner-page">
+        <SectionLabel>SUARA & HARAPAN</SectionLabel>
+        <h1 className="page-heading">Kata yang menghangatkan.</h1>
+        <p className="page-intro">
+          Titipkan doa, semangat, dan harapan untuk Maheswara Maheswari 2027.
+        </p>
+        <div className="message-grid">
+          {data.messages.map((m, i) => (
+            <article className="message-card" key={i}>
+              <Quote />
+              <blockquote>“{m.text}”</blockquote>
+              <div className="message-author">
+                {m.name}
+                <span>{m.category}</span>
+              </div>
+            </article>
+          ))}
+        </div>
+        <form className="form-panel" onSubmit={submit}>
+          <h2>Tinggalkan sebuah pesan.</h2>
+          <div className="field">
+            <span>Nama Anda</span>
+            <input
+              name="name"
+              aria-label="Nama Anda"
+              required
+              maxLength={80}
+              placeholder="Nama lengkap"
+            />
+          </div>
+          <div className="field mt-5">
+            <span>Kesan & pesan</span>
+            <textarea
+              name="text"
+              aria-label="Kesan dan pesan"
+              required
+              maxLength={500}
+              placeholder="Tuliskan harapan terbaik Anda…"
+            />
+          </div>
+          <div className="form-actions">
+            <Button type="submit">
+              Kirim Pesan <ArrowUpRight />
+            </Button>
+          </div>
+        </form>
+      </main>
+    </PublicLayout>
+  );
+}
+export function RsvpPage() {
+  return (
+    <PublicLayout>
+      <main className="registration-section">
+        <div className="page-width">
+          <EventRegistrationForm />
+        </div>
+      </main>
+    </PublicLayout>
+  );
+}
+function ticketIdentity(item: Invitation) {
+  const name = item.category === "SMP" ? item.principal || item.name : item.name;
+  const institution = item.category === "SMP" ? item.name : item.institution;
+  const role =
+    item.title ||
+    (item.category === "SMP"
+      ? "Kepala Sekolah"
+      : item.category === "Guru"
+        ? "Guru / Pendidik"
+        : item.category === "VIP"
+          ? item.vipLevel || "Tamu Kehormatan"
+          : `${item.relationship || "Orang Tua"} / Wali`);
+  return { name, institution, role };
+}
+export function GoldenTicket({
+  item,
+  member,
+}: {
+  item: Invitation;
+  member?: { name: string; role: string };
+}) {
+  const { data } = useSambut();
+  const identity = ticketIdentity(item);
+  const dateTime = data.settings.date
+    ? new Date(data.settings.date).toLocaleString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "Tanggal dan waktu segera diumumkan";
+  const progress = Math.min(100, Math.round((item.checked / Math.max(1, item.quota)) * 100));
+  const ticketName = member?.name ?? (item.category === "SMP" ? item.name : identity.name);
+  return (
+    <div className="ticket" id="golden-ticket">
+      <div className="ticket-top">
+        <Brand compact />
+        <div className="ticket-event">{data.settings.name}</div>
+        <h2>{ticketName}</h2>
+        <p className="ticket-recipient">
+          {member
+            ? `${member.role} · ${item.name}`
+            : item.category === "SMP"
+              ? `${identity.name} · ${identity.role}`
+              : identity.role}
+        </p>
+        {!member && identity.institution && item.category !== "SMP" && (
+          <p className="ticket-institution">{identity.institution}</p>
+        )}
+        <div className="ticket-seat">
+          Seat {item.seat || "Belum ditetapkan"} · {item.quota} orang
+        </div>
+      </div>
+      <div className="ticket-location">
+        <MapPin aria-hidden="true" />
+        <div>
+          <strong>{dateTime}</strong>
+          <span>LOCATION · {data.settings.location || "Segera diumumkan"}</span>
+          {data.settings.location && (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.settings.location)}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Buka peta
+            </a>
+          )}
+        </div>
+      </div>
+      <div className="ticket-perforation" aria-hidden="true" />
+      <div className="ticket-attendance">
+        <div className="ticket-attendance-heading">
+          <span>
+            {item.category === "SMP" ? "Rombongan yang sudah masuk" : "Tamu yang sudah masuk"}
+          </span>
+          <strong>
+            {item.checked} <small>/ {item.quota}</small>
+          </strong>
+        </div>
+        <div
+          className="ticket-progress"
+          role="progressbar"
+          aria-label="Jumlah tamu yang sudah check-in"
+          aria-valuemin={0}
+          aria-valuemax={item.quota}
+          aria-valuenow={Math.min(item.checked, item.quota)}
+        >
+          <span style={{ width: `${progress}%` }} />
+        </div>
+        <strong className="ticket-remaining">
+          Sisa {Math.max(0, item.quota - item.checked)} orang dapat masuk.
+        </strong>
+      </div>
+      <div className="ticket-perforation" aria-hidden="true" />
+      <div className="qr-paper">
+        <QRCodeSVG value={item.code} size={240} level="M" bgColor="transparent" />
+      </div>
+      <div className="ticket-code-row">
+        <div className="ticket-code">{item.code}</div>
+        <RsvpBadge value={item.rsvp} />
+      </div>
+      <p className="ticket-note">
+        {item.category === "SMP"
+          ? "Tunjukkan barcode ini kepada petugas di pintu masuk. Satu tiket berlaku untuk seluruh rombongan."
+          : "Tunjukkan barcode ini kepada petugas saat tiba di lokasi."}
+      </p>
+    </div>
+  );
+}
+export function TicketPage({ code }: { code: string }) {
+  const { data, ready } = useSambut();
+  const ref = useRef<HTMLDivElement>(null);
+  const item = data.invitations.find((i) => i.code === code && !i.cancelled);
+  const identity = item ? ticketIdentity(item) : { name: "", institution: "", role: "" };
+  async function download() {
+    if (!ref.current) return;
+    const ticket = ref.current.querySelector<HTMLElement>(".ticket");
+    if (!ticket) return;
+    try {
+      const { toPng } = await import("html-to-image");
+      const url = await toPng(ticket, {
+        pixelRatio: 2,
+        width: ticket.offsetWidth,
+        height: ticket.offsetHeight,
+        style: { margin: "0", maxWidth: "none" },
+      });
+      const a = document.createElement("a");
+      a.download = `Golden-Ticket-${code}.png`;
+      a.href = url;
+      a.click();
+    } catch {
+      toast.error("Unduhan gagal. Gunakan Cetak / PDF sebagai alternatif.");
+    }
+  }
+  return (
+    <PublicLayout>
+      <main className="ticket-page">
+        {!ready ? (
+          <div className="page-width inner-page">
+            <Empty title="Memuat undangan…" text="" />
+          </div>
+        ) : item ? (
+          <section className="ticket-page-section">
+            <div className="page-width ticket-page-layout">
+              <header className="ticket-page-heading">
+                <div>
+                  <SectionLabel>TIKET DIGITAL · {item.category.toUpperCase()}</SectionLabel>
+                  <h1>Golden Ticket</h1>
+                  <p>
+                    Undangan untuk <strong>{identity.name}</strong>. Tunjukkan QR ini kepada panitia
+                    saat tiba di lokasi.
+                  </p>
+                </div>
+                <Badge tone="gold">{item.rsvp === "Tidak Hadir" ? "Tidak Hadir" : item.rsvp}</Badge>
+              </header>
+              <div className="ticket-page-card" ref={ref}>
+                <GoldenTicket item={item} />
+              </div>
+              <div className="ticket-actions">
+                <Button onClick={download}>
+                  <Download />
+                  Unduh PNG
+                </Button>
+                <Button variant="outline" onClick={() => window.print()}>
+                  <Printer />
+                  Cetak / PDF
+                </Button>
+                <Button variant="outline" onClick={() => copyText(inviteURL(code))}>
+                  <Copy />
+                  Salin Tautan
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    window.open(
+                      `https://wa.me/?text=${encodeURIComponent(`Anda diundang ke ${data.settings.name}. ${inviteURL(code)}`)}`,
+                      "_blank",
+                      "noopener,noreferrer",
+                    )
+                  }
+                >
+                  <Share2 />
+                  Bagikan
+                </Button>
+                <Button
+                  variant="outline"
+                  aria-label="Layar penuh tiket"
+                  title="Layar penuh tiket"
+                  onClick={() =>
+                    ref.current
+                      ?.requestFullscreen?.()
+                      .catch(() => toast.error("Layar penuh tidak tersedia"))
+                  }
+                >
+                  <Maximize />
+                </Button>
+              </div>
+              <div className="text-center ticket-page-footer">
+                <ArrowLink to="/">Kembali ke halaman acara</ArrowLink>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <div className="page-width inner-page">
+            <Empty
+              title="Undangan tidak ditemukan"
+              text="Periksa kembali tautan atau hubungi panitia acara."
+            />
+          </div>
+        )}
+      </main>
+    </PublicLayout>
+  );
+}
