@@ -43,7 +43,7 @@ export function LoginPage() {
       <section className="login-visual">
         <img src={templeImage} width={1920} height={1088} alt="Inspirasi budaya Nusantara" />
         <div>
-          <SectionLabel>RUANG PANITIA MAHESWARA MAHESWARI 2027</SectionLabel>
+          <SectionLabel>RUANG PANITIA MAHESWARA MAHESWARI 2026</SectionLabel>
           <h1>
             Sambut setiap tamu.
             <br />
@@ -55,10 +55,7 @@ export function LoginPage() {
         <form className="login-form" onSubmit={submit}>
           <div className="login-form-heading">
             <Brand compact />
-            <div>
-              <h2>Selamat datang kembali.</h2>
-              <p>Masuk ke ruang panitia.</p>
-            </div>
+           
           </div>
           <div className="login-fields">
             <label className="field">
