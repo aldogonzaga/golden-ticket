@@ -86,9 +86,13 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
         <div className="page-width footer-bottom">
-          <span>© 2026 GenZ Indonesia. Seluruh hak cipta dilindungi.</span>
+          <span>© 2026 GenZ Indonesia. Seluruh hak cipta dilindungi.<Link to="/admin/login" className="admin-access">
+            Akses Panitia 
+          </Link></span>
           <span>
             <Flower2 size={13} /> Dibuat dengan semangat Indonesia
+
+            
           </span>
         </div>
       </footer>
