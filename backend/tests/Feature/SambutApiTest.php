@@ -12,7 +12,9 @@ class SambutApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->artisan('db:seed');
+        $this->artisan('migrate');
+        $this->artisan('db:seed', ['--class' => 'DatabaseSeeder']);
+        $this->artisan('db:seed', ['--class' => 'DemoSeeder']);
     }
 
     public function test_admin_can_login_with_credentials(): void

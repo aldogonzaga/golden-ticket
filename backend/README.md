@@ -52,17 +52,26 @@ cd backend
 ```
 
 ### 2. Konfigurasi Environment & Database
-File `.env` sudah terkonfigurasi menggunakan SQLite:
+File `.env` telah terhubung ke database **MySQL**:
 ```ini
-DB_CONNECTION=sqlite
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=sambut_gcp
+DB_USERNAME=root
+DB_PASSWORD=
 APP_URL=http://127.0.0.1:8000
 ```
-Database SQLite berada di `database/database.sqlite`.
 
-### 3. Migrasi & Seeding Data Awal
-Jalankan perintah berikut untuk membuat seluruh tabel dan mengisi data awal:
+### 3. Migrasi & Seeding
+Database sudah siap pakai dalam kondisi bersih (tanpa data demo).
+- Untuk reset atau migrasi ulang:
 ```bash
 php artisan migrate:fresh --seed
+```
+- Jika ingin memasukkan data simulasi demo (opsional):
+```bash
+php artisan db:seed --class=DemoSeeder
 ```
 
 ### 4. Menjalankan Server Backend
