@@ -316,23 +316,8 @@ export function SambutProvider({ children }: { children: ReactNode }) {
           added = Math.min(unpresentMembers.length, remainingQuota);
           updatedMembers = updatedMembers.map((m) => ({ ...m, present: true }));
         } else {
-          added = Math.min(count || remainingQuota, remainingQuota);
-        }
-
-        // Auto-create delegate members so registered members count matches attendance
-        const targetMemberCount = Math.min(item.checked + added, item.quota);
-        if (updatedMembers.length < targetMemberCount) {
-          const needed = targetMemberCount - updatedMembers.length;
-          for (let i = 0; i < needed; i++) {
-            const memberIdx = updatedMembers.length + 1;
-            const isLeader = memberIdx === 1 && Boolean(item.principal?.trim());
-            updatedMembers.push({
-              id: crypto.randomUUID(),
-              name: isLeader ? `${item.principal} (Kepala Sekolah)` : `Delegasi / Siswa ${memberIdx}`,
-              role: isLeader ? "Kepala Sekolah" : "Siswa",
-              present: true,
-            });
-          }
+          // If no members registered, check in 1 person (ticket bearer/representative)
+          added = Math.min(count || 1, remainingQuota);
         }
       }
     } else {

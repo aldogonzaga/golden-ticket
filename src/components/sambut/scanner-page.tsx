@@ -117,7 +117,9 @@ export function ScanAlertModal({
                 <div className="col-span-2 border-t border-border/40 pt-1.5 mt-1 flex justify-between items-center">
                   <span className="text-muted-foreground text-[11px]">Nama Anggota Terdaftar:</span>
                   <span className="font-medium text-foreground text-xs">
-                    {item.members.length > 0 ? `${item.members.length} dari ${item.quota} nama terdaftar` : "Belum diinput"}
+                    {item.members.length > 0
+                      ? `${item.members.length} dari ${item.quota} nama terdaftar`
+                      : `Belum diinput (0 dari ${item.quota})`}
                   </span>
                 </div>
               )}
@@ -310,30 +312,23 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
     const remaining = item.quota - item.checked;
     if (remaining > 0) {
       const unpresent = (item.members || []).filter((m) => !m.present).map((m) => m.id);
-      const success = checkIn(item.id, unpresent, remaining);
+      // If SMP has unpresent registered members, check them in; otherwise check in 1 person per scan
+      const countToCheckIn =
+        item.category === "SMP"
+          ? unpresent.length > 0
+            ? unpresent.length
+            : 1
+          : 1;
+
+      const success = checkIn(item.id, unpresent, countToCheckIn);
       if (success) {
-        toast.success(`Check-in berhasil: ${item.name} (${remaining} tamu)`);
-        // Build updated member list so alertItem accurately shows registered delegation
-        let updatedMembers = [...(item.members || [])];
-        if (item.category === "SMP") {
-          updatedMembers = updatedMembers.map((m) => ({ ...m, present: true }));
-          const target = Math.min(item.checked + remaining, item.quota);
-          if (updatedMembers.length < target) {
-            for (let i = updatedMembers.length; i < target; i++) {
-              const num = i + 1;
-              const isLeader = num === 1 && Boolean(item.principal?.trim());
-              updatedMembers.push({
-                id: `auto-${num}`,
-                name: isLeader ? `${item.principal} (Kepala Sekolah)` : `Delegasi / Siswa ${num}`,
-                role: isLeader ? "Kepala Sekolah" : "Siswa",
-                present: true,
-              });
-            }
-          }
-        }
+        toast.success(`Check-in berhasil: ${item.name} (${countToCheckIn} tamu)`);
+        const updatedMembers = (item.members || []).map((m) =>
+          unpresent.includes(m.id) ? { ...m, present: true } : m,
+        );
         return {
           ...item,
-          checked: item.checked + remaining,
+          checked: item.checked + countToCheckIn,
           members: updatedMembers,
         };
       }
