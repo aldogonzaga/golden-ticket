@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, ScanLine, Square, Check, ArrowRight, CheckCircle2, UserCheck, AlertTriangle } from "lucide-react";
+import { Camera, ScanLine, Square, Check, ArrowRight, CheckCircle2, UserCheck, AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSambut, attendanceLabel, type Invitation } from "@/lib/sambut/store";
+import { useSambut, type Invitation } from "@/lib/sambut/store";
 import { toast } from "sonner";
 import { AdminLayout } from "./admin-layout";
 import { Badge, Empty, RsvpBadge } from "./shared";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 function playScanBeep() {
   try {
@@ -22,6 +23,122 @@ function playScanBeep() {
     osc.start();
     osc.stop(ctx.currentTime + 0.15);
   } catch {}
+}
+
+/**
+ * Pop-up Alert Modal yang muncul di tengah layar setelah tiket di-scan
+ */
+export function ScanAlertModal({
+  item,
+  onContinueScan,
+}: {
+  item: Invitation;
+  onContinueScan: () => void;
+}) {
+  const isFull = item.checked >= item.quota;
+  const isCancelled = item.cancelled;
+
+  return (
+    <DialogPrimitive.Root
+      open
+      onOpenChange={(open) => {
+        if (!open) onContinueScan();
+      }}
+    >
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="modal-backdrop" />
+        <DialogPrimitive.Content
+          className="modal accessible-modal"
+          style={{ maxWidth: "480px", width: "92vw" }}
+          aria-describedby={undefined}
+        >
+          <header className="flex items-center justify-between border-b border-border/80 px-5 py-4">
+            <DialogPrimitive.Title asChild>
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-md bg-primary/10 text-primary">
+                  <ScanLine size={18} />
+                </span>
+                <span className="font-semibold text-base">Konfirmasi Kehadiran Tamu</span>
+              </div>
+            </DialogPrimitive.Title>
+            <Button variant="ghost" size="icon" onClick={onContinueScan} aria-label="Tutup pop up">
+              <X size={18} />
+            </Button>
+          </header>
+
+          <div className="p-6 text-center">
+            {/* Animated Icon & Badge */}
+            {isCancelled ? (
+              <div className="w-16 h-16 rounded-full bg-destructive/15 text-destructive border border-destructive/30 flex items-center justify-center mx-auto mb-3">
+                <AlertTriangle className="w-9 h-9" />
+              </div>
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto mb-3 animate-in zoom-in-75 duration-200">
+                <CheckCircle2 className="w-9 h-9" />
+              </div>
+            )}
+
+            <div className="mb-2">
+              {isCancelled ? (
+                <Badge tone="danger">Undangan Dibatalkan</Badge>
+              ) : isFull ? (
+                <Badge tone="success">✓ Berhasil di-Scan & Terkonfirmasi</Badge>
+              ) : (
+                <Badge tone="gold">✓ Check-in Sebagian</Badge>
+              )}
+            </div>
+
+            <h3 className="text-xl font-bold mt-2 text-foreground leading-snug">
+              {item.name}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              {item.category === "SMP" ? item.principal : item.institution || "Tamu Undangan"}
+            </p>
+
+            {/* Grid Informasi Tamu */}
+            <div className="grid grid-cols-2 gap-2 mt-4 p-3.5 bg-muted/40 border border-border/80 rounded-xl text-left text-xs">
+              <div>
+                <span className="text-muted-foreground block text-[10px]">Kode Tiket</span>
+                <span className="font-mono font-bold text-foreground text-xs">{item.code}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[10px]">Kategori</span>
+                <span className="font-semibold text-primary">{item.category}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[10px]">Area / No. Kursi</span>
+                <span className="font-bold text-foreground">{item.seat || "Bebas"}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[10px]">Total Kehadiran</span>
+                <span className="font-bold text-emerald-400">
+                  {item.checked} / {item.quota} Hadir
+                </span>
+              </div>
+            </div>
+
+            {item.seat && !isCancelled && (
+              <div className="mt-3 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-medium">
+                Arahkan tamu ke area duduk: <strong>{item.seat}</strong>
+              </div>
+            )}
+
+            {/* Tombol Utama: Lanjut Scan */}
+            <Button
+              type="button"
+              size="lg"
+              className="w-full mt-6 py-6 text-base font-semibold shadow-lg shadow-primary/25 flex items-center justify-center gap-2"
+              onClick={onContinueScan}
+              autoFocus
+            >
+              <ScanLine className="w-5 h-5" />
+              Lanjut Scan
+            </Button>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  );
 }
 
 export function CheckInPanel({
@@ -53,7 +170,6 @@ export function CheckInPanel({
 
   return (
     <div className="scan-info">
-      {/* Status Badge */}
       <div className="flex items-center gap-2 mb-3">
         {isCancelled ? (
           <Badge tone="danger">
@@ -84,7 +200,6 @@ export function CheckInPanel({
         · <span className="text-primary font-medium">{item.category}</span>
       </p>
 
-      {/* Ringkasan Kehadiran & Kursi */}
       <div className="scan-summary mt-5">
         <div>
           <small>Total Kuota</small>
@@ -102,7 +217,6 @@ export function CheckInPanel({
         </div>
       </div>
 
-      {/* Kartu Konfirmasi Berhasil */}
       {isCancelled ? (
         <div className="border border-destructive/40 bg-destructive/10 rounded-xl p-4 mt-6 text-center">
           <AlertTriangle className="w-10 h-10 text-destructive mx-auto mb-2" />
@@ -120,7 +234,7 @@ export function CheckInPanel({
             ✓ Berhasil di-Scan & Terkonfirmasi
           </h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Kehadiran telah otomatis dicatat ke database MySQL. Selamat datang!
+            Kehadiran telah otomatis dicatat ke database.
           </p>
           {item.seat && (
             <div className="inline-block mt-3 px-3 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-medium">
@@ -130,7 +244,6 @@ export function CheckInPanel({
         </div>
       )}
 
-      {/* Tombol Konfirmasi: LANJUT SCAN */}
       {onContinueScan && (
         <Button
           type="button"
@@ -152,6 +265,7 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
   const [id, setId] = useState(
     () => data.invitations.find((i) => i.code === initialCode)?.id || "",
   );
+  const [alertItem, setAlertItem] = useState<Invitation | null>(null);
   const [active, setActive] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [error, setError] = useState("");
@@ -169,10 +283,10 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
     };
   }, []);
 
-  function performAutoCheckIn(item: Invitation) {
+  function performAutoCheckIn(item: Invitation): Invitation {
     if (item.cancelled) {
       toast.error(`Undangan ${item.name} dibatalkan`);
-      return;
+      return item;
     }
 
     if (item.checked < item.quota) {
@@ -180,13 +294,17 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
         const unpresent = (item.members || []).filter((m) => !m.present).map((m) => m.id);
         const count = unpresent.length > 0 ? unpresent.length : item.quota - item.checked;
         checkIn(item.id, unpresent, count);
+        toast.success(`Check-in berhasil: ${item.name}`);
+        return { ...item, checked: item.checked + count };
       } else {
         const remaining = item.quota - item.checked;
         checkIn(item.id, [], remaining);
+        toast.success(`Check-in berhasil: ${item.name}`);
+        return { ...item, checked: item.quota };
       }
-      toast.success(`Check-in berhasil: ${item.name}`);
     } else {
       toast.info(`${item.name} sudah check-in lengkap sebelumnya`);
+      return item;
     }
   }
 
@@ -198,6 +316,7 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
         .trim();
     } catch {
       setId("");
+      setAlertItem(null);
       setError("QR tidak valid. Format kode tidak dapat dibaca.");
       return;
     }
@@ -205,25 +324,28 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
     const item = data.invitations.find((i) => i.code.toUpperCase() === normalized);
     if (!item) {
       setId("");
+      setAlertItem(null);
       setError("QR tidak valid. Kode undangan tidak ditemukan.");
       toast.error("QR tidak valid. Kode undangan tidak ditemukan.");
       return;
     }
 
-    // Suara konfirmasi beep
+    // Suara beep konfirmasi
     playScanBeep();
 
-    // Otomatis catat check-in saat scan berhasil
-    performAutoCheckIn(item);
+    // Otomatis check-in
+    const checkedItem = performAutoCheckIn(item);
 
+    // Buka pop-up alert konfirmasi
     setId(item.id);
+    setAlertItem(checkedItem);
     setError("");
     setCode(item.code);
     setHistory((h) =>
       [`${item.name} · ${new Date().toLocaleTimeString("id-ID")}`, ...h].slice(0, 5),
     );
 
-    // Hentikan scanner sementara agar tidak scan berulang kali saat konfirmasi tampil
+    // Hentikan scanner kamera sementara saat pop-up alert tampil
     if (scanner.current?.isScanning) stop();
   }
 
@@ -268,6 +390,7 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
   }
 
   function handleContinueScan() {
+    setAlertItem(null);
     setId("");
     setCode("");
     setError("");
@@ -276,11 +399,16 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
 
   return (
     <AdminLayout>
+      {/* Pop-up Alert Modal Hasil Scan */}
+      {alertItem && (
+        <ScanAlertModal item={alertItem} onContinueScan={handleContinueScan} />
+      )}
+
       <div className="admin-title-row">
         <div>
           <div className="admin-greeting">SAMBUT SETIAP KEHADIRAN</div>
           <h1>{initialCode ? "Konfirmasi Check-in" : "Scanner QR"}</h1>
-          <p>Pindai tiket dan konfirmasi kehadiran tamu secara instan tanpa perlu isi formulir.</p>
+          <p>Pindai tiket dan konfirmasi kehadiran tamu secara instan melalui pop-up alert.</p>
         </div>
         <Badge tone={active ? "success" : "muted"}>
           {active ? "Kamera Aktif" : "Kamera Siap"}
@@ -382,7 +510,7 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
           ) : (
             <Empty
               title="Tiket siapa yang kita sambut?"
-              text="Pindai QR barcode atau masukkan kode tiket untuk konfirmasi kehadiran otomatis."
+              text="Pindai QR barcode atau masukkan kode tiket untuk konfirmasi kehadiran instan."
             />
           )}
         </section>
