@@ -77,20 +77,54 @@ class CheckInController extends Controller
         }
 
         $memberIds = $validated['member_ids'] ?? [];
-        $count = $validated['count'] ?? 1;
+        $remainingQuota = $invitation->quota - $invitation->checked;
+
+        if ($remainingQuota <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kuota tiket sudah penuh / sudah check-in lengkap sebelumnya.',
+            ], 422);
+        }
 
         if ($invitation->category === 'SMP') {
-            $unpresentMembers = $invitation->members
-                ->whereIn('id', $memberIds)
-                ->where('present', false);
+            if (! empty($memberIds)) {
+                $unpresentMembers = $invitation->members
+                    ->whereIn('id', $memberIds)
+                    ->where('present', false);
 
-            $added = $unpresentMembers->count();
+                $added = $unpresentMembers->count();
 
-            if ($added === 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Sudah check-in atau belum ada peserta dipilih.',
-                ], 422);
+                if ($added === 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Anggota yang dipilih sudah check-in sebelumnya.',
+                    ], 422);
+                }
+
+                Member::whereIn('id', $unpresentMembers->pluck('id'))
+                    ->update(['present' => true]);
+            } else {
+                // Check in all unpresent members if any, or check in the remaining quota
+                $unpresentCount = $invitation->members()->where('present', false)->count();
+                $invitation->members()->where('present', false)->update(['present' => true]);
+
+                $added = $unpresentCount > 0
+                    ? min($unpresentCount, $remainingQuota)
+                    : min($validated['count'] ?? $remainingQuota, $remainingQuota);
+
+                // Auto-create delegate members in DB if members count is less than checked + added
+                $existingCount = $invitation->members()->count();
+                $targetCount = min($invitation->checked + $added, $invitation->quota);
+                if ($existingCount < $targetCount) {
+                    for ($idx = $existingCount + 1; $idx <= $targetCount; $idx++) {
+                        $isLeader = ($idx === 1 && !empty(trim($invitation->principal ?? '')));
+                        $invitation->members()->create([
+                            'name' => $isLeader ? "{$invitation->principal} (Kepala Sekolah)" : "Delegasi / Siswa {$idx}",
+                            'role' => $isLeader ? 'Kepala Sekolah' : 'Siswa',
+                            'present' => true,
+                        ]);
+                    }
+                }
             }
 
             if ($invitation->checked + $added > $invitation->quota) {
@@ -99,19 +133,16 @@ class CheckInController extends Controller
                     'message' => 'Jumlah hadir melebihi kuota.',
                 ], 422);
             }
-
-            Member::whereIn('id', $unpresentMembers->pluck('id'))
-                ->update(['present' => true]);
 
             $invitation->checked += $added;
             $invitation->save();
         } else {
-            $added = $count;
+            $added = min($validated['count'] ?? $remainingQuota, $remainingQuota);
 
-            if ($invitation->checked + $added > $invitation->quota) {
+            if ($added <= 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Jumlah hadir melebihi kuota.',
+                    'message' => 'Jumlah hadir tidak valid atau kuota sudah penuh.',
                 ], 422);
             }
 

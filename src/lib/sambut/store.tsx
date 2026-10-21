@@ -288,39 +288,94 @@ export function SambutProvider({ children }: { children: ReactNode }) {
       toast.error("Undangan tidak valid atau dibatalkan.");
       return false;
     }
-    const added =
-      item.category === "SMP"
-        ? item.members.filter((m) => memberIds.includes(m.id) && !m.present).length
-        : count;
-    if (!added) {
+
+    const remainingQuota = item.quota - item.checked;
+    if (remainingQuota <= 0) {
+      toast.error("Kuota undangan sudah penuh atau sudah check-in lengkap.");
+      return false;
+    }
+
+    let added = 0;
+    let updatedMembers = [...(item.members || [])];
+
+    if (item.category === "SMP") {
+      if (memberIds && memberIds.length > 0) {
+        const unpresentSelected = updatedMembers.filter(
+          (m) => memberIds.includes(m.id) && !m.present,
+        );
+        added = unpresentSelected.length;
+        if (added > 0) {
+          updatedMembers = updatedMembers.map((m) =>
+            memberIds.includes(m.id) ? { ...m, present: true } : m,
+          );
+        }
+      } else {
+        // No specific member IDs passed (e.g. quick auto check-in from scanner)
+        const unpresentMembers = updatedMembers.filter((m) => !m.present);
+        if (unpresentMembers.length > 0) {
+          added = Math.min(unpresentMembers.length, remainingQuota);
+          updatedMembers = updatedMembers.map((m) => ({ ...m, present: true }));
+        } else {
+          added = Math.min(count || remainingQuota, remainingQuota);
+        }
+
+        // Auto-create delegate members so registered members count matches attendance
+        const targetMemberCount = Math.min(item.checked + added, item.quota);
+        if (updatedMembers.length < targetMemberCount) {
+          const needed = targetMemberCount - updatedMembers.length;
+          for (let i = 0; i < needed; i++) {
+            const memberIdx = updatedMembers.length + 1;
+            const isLeader = memberIdx === 1 && Boolean(item.principal?.trim());
+            updatedMembers.push({
+              id: crypto.randomUUID(),
+              name: isLeader ? `${item.principal} (Kepala Sekolah)` : `Delegasi / Siswa ${memberIdx}`,
+              role: isLeader ? "Kepala Sekolah" : "Siswa",
+              present: true,
+            });
+          }
+        }
+      }
+    } else {
+      added = Math.min(count || remainingQuota, remainingQuota);
+    }
+
+    if (!added || added < 1) {
       toast.error("Sudah check-in atau belum ada peserta dipilih.");
       return false;
     }
-    if (!Number.isInteger(added) || item.checked + added > item.quota || added < 1) {
+    if (item.checked + added > item.quota) {
       toast.error("Jumlah hadir melebihi kuota.");
       return false;
     }
 
+    const newChecked = item.checked + added;
+    const updatedItem = {
+      ...item,
+      checked: newChecked,
+      members: updatedMembers,
+    };
+
     setData((d) => ({
       ...d,
-      invitations: d.invitations.map((i) =>
-        i.id === id
-          ? {
-              ...i,
-              checked: i.checked + added,
-              members: i.members.map((m) =>
-                memberIds.includes(m.id) ? { ...m, present: true } : m,
-              ),
-            }
-          : i,
-      ),
+      invitations: d.invitations.map((i) => (i.id === id ? updatedItem : i)),
       activities: activity(d, `${item.name} · ${added} peserta berhasil check-in`),
     }));
 
     // Sync to backend Laravel MySQL
-    checkInApi({ id, member_ids: memberIds, count: added }).catch((err) => {
-      console.error("CheckIn API sync error:", err);
-    });
+    checkInApi({ id, member_ids: memberIds, count: added })
+      .then((res) => {
+        if (res.data) {
+          setData((d) => ({
+            ...d,
+            invitations: d.invitations.map((i) =>
+              i.id === res.data.id ? { ...res.data, members: res.data.members || [] } : i,
+            ),
+          }));
+        }
+      })
+      .catch((err) => {
+        console.error("CheckIn API sync error:", err);
+      });
 
     toast.success(`${added} peserta berhasil check-in`);
     return true;

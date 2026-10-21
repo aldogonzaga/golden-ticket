@@ -231,11 +231,12 @@ export function InvitationsPage({ category }: { category?: Category }) {
                   </td>
                   <td>
                     <span className="table-name">
-                      {i.category === "SMP" ? i.members.length : i.quota}
-                      <span className="text-muted-foreground font-normal"> / {i.quota}</span>
+                      {i.quota} Orang
                     </span>
-                    <span className="table-sub">
-                      {i.category === "SMP" ? "terdaftar" : "orang"}
+                    <span className="table-sub block text-[11px] text-muted-foreground">
+                      {i.category === "SMP"
+                        ? `${i.members.length} dari ${i.quota} nama terdaftar`
+                        : "Kuota perorangan"}
                     </span>
                   </td>
                   <td>
@@ -243,7 +244,11 @@ export function InvitationsPage({ category }: { category?: Category }) {
                   </td>
                   <td>
                     <Badge tone={i.checked ? "success" : "muted"}>
-                      {i.checked ? "Hadir " + i.checked : "Belum hadir"}
+                      {i.checked
+                        ? i.checked === i.quota
+                          ? `Hadir lengkap (${i.checked})`
+                          : `Hadir ${i.checked}/${i.quota}`
+                        : "Belum hadir"}
                     </Badge>
                   </td>
                   <td>

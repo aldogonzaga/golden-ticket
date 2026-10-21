@@ -106,13 +106,25 @@ export function ScanAlertModal({
                 <span className="font-semibold text-primary">{item.category}</span>
               </div>
               <div>
+                <span className="text-muted-foreground block text-[10px]">Total Kuota Undangan</span>
+                <span className="font-bold text-foreground">{item.quota} Orang</span>
+              </div>
+              <div>
                 <span className="text-muted-foreground block text-[10px]">Area / No. Kursi</span>
                 <span className="font-bold text-foreground">{item.seat || "Bebas"}</span>
               </div>
-              <div>
-                <span className="text-muted-foreground block text-[10px]">Total Kehadiran</span>
-                <span className="font-bold text-emerald-400">
-                  {item.checked} / {item.quota} Hadir
+              {item.category === "SMP" && (
+                <div className="col-span-2 border-t border-border/40 pt-1.5 mt-1 flex justify-between items-center">
+                  <span className="text-muted-foreground text-[11px]">Nama Anggota Terdaftar:</span>
+                  <span className="font-medium text-foreground text-xs">
+                    {item.members.length > 0 ? `${item.members.length} dari ${item.quota} nama terdaftar` : "Belum diinput"}
+                  </span>
+                </div>
+              )}
+              <div className="col-span-2 border-t border-border/40 pt-1.5 mt-1 flex justify-between items-center">
+                <span className="text-muted-foreground text-[11px]">Status Kehadiran:</span>
+                <span className="font-bold text-emerald-400 text-sm">
+                  {item.checked} / {item.quota} Tamu Hadir
                 </span>
               </div>
             </div>
@@ -217,6 +229,12 @@ export function CheckInPanel({
         </div>
       </div>
 
+      {item.category === "SMP" && (
+        <p className="text-xs text-muted-foreground mt-3 bg-muted/40 p-2.5 rounded-lg border border-border/60">
+          Nama anggota diinput: <strong className="text-foreground">{item.members.length > 0 ? `${item.members.length} dari ${item.quota} nama` : "Belum ada nama siswa/guru diinput"}</strong>
+        </p>
+      )}
+
       {isCancelled ? (
         <div className="border border-destructive/40 bg-destructive/10 rounded-xl p-4 mt-6 text-center">
           <AlertTriangle className="w-10 h-10 text-destructive mx-auto mb-2" />
@@ -289,21 +307,39 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
       return item;
     }
 
-    if (item.checked < item.quota) {
-      if (item.category === "SMP") {
-        const unpresent = (item.members || []).filter((m) => !m.present).map((m) => m.id);
-        const count = unpresent.length > 0 ? unpresent.length : item.quota - item.checked;
-        checkIn(item.id, unpresent, count);
-        toast.success(`Check-in berhasil: ${item.name}`);
-        return { ...item, checked: item.checked + count };
-      } else {
-        const remaining = item.quota - item.checked;
-        checkIn(item.id, [], remaining);
-        toast.success(`Check-in berhasil: ${item.name}`);
-        return { ...item, checked: item.quota };
+    const remaining = item.quota - item.checked;
+    if (remaining > 0) {
+      const unpresent = (item.members || []).filter((m) => !m.present).map((m) => m.id);
+      const success = checkIn(item.id, unpresent, remaining);
+      if (success) {
+        toast.success(`Check-in berhasil: ${item.name} (${remaining} tamu)`);
+        // Build updated member list so alertItem accurately shows registered delegation
+        let updatedMembers = [...(item.members || [])];
+        if (item.category === "SMP") {
+          updatedMembers = updatedMembers.map((m) => ({ ...m, present: true }));
+          const target = Math.min(item.checked + remaining, item.quota);
+          if (updatedMembers.length < target) {
+            for (let i = updatedMembers.length; i < target; i++) {
+              const num = i + 1;
+              const isLeader = num === 1 && Boolean(item.principal?.trim());
+              updatedMembers.push({
+                id: `auto-${num}`,
+                name: isLeader ? `${item.principal} (Kepala Sekolah)` : `Delegasi / Siswa ${num}`,
+                role: isLeader ? "Kepala Sekolah" : "Siswa",
+                present: true,
+              });
+            }
+          }
+        }
+        return {
+          ...item,
+          checked: item.checked + remaining,
+          members: updatedMembers,
+        };
       }
+      return item;
     } else {
-      toast.info(`${item.name} sudah check-in lengkap sebelumnya`);
+      toast.info(`${item.name} sudah check-in lengkap sebelumnya (${item.checked}/${item.quota})`);
       return item;
     }
   }
