@@ -341,7 +341,7 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
         </section>
         <section className="admin-panel">
           <div className="panel-header">
-            <h2>Detail & Konfirmasi Kehadiran</h2>
+            <h2>Detail & Klaim Tiket</h2>
             <Badge tone="muted">{id ? "Undangan ditemukan" : "Menunggu scan"}</Badge>
           </div>
           {id ? (

@@ -41,7 +41,7 @@ export function LoginPage() {
   return (
     <div className="login-page">
       <section className="login-visual">
-        <img src={templeImage} width={1920} height={1088} alt="Inspirasi budaya Nusantara" />
+        <img src={templeImage} width={1920} height={1088} alt="Inspirasi Budaya Nusantara" />
         <div>
           <SectionLabel>RUANG PANITIA MAHESWARA MAHESWARI 2026</SectionLabel>
           <h1>
@@ -523,7 +523,7 @@ export function SettingsPage() {
               <p className="mt-5">
                 {eventDate(draft.date)}
                 <br />
-                {draft.location || "Lokasi segera diumumkan"}
+                {draft.location || "Lokasi Acara"}
               </p>
               <Button asChild className="mt-5" variant="outline">
                 <Link to="/">

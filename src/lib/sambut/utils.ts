@@ -39,8 +39,8 @@ export async function exportData(rows: Invitation[], format: "csv" | "xlsx" = "x
 export function eventDate(date: string) {
   return date
     ? new Date(date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
-    : "Tanggal segera diumumkan";
+    : "Tanggal ";
 }
 export function inviteURL(code: string) {
-  return `${window.location.origin}/ticket/${encodeURIComponent(code)}`;
+  return `${window.location.origin}/?undangan=${encodeURIComponent(code)}`;
 }

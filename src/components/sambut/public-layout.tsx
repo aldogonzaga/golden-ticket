@@ -4,6 +4,7 @@ import { ArrowUpRight, Menu, X, Flower2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Brand } from "./shared";
 import { useSambut } from "@/lib/sambut/store";
+
 export function PublicLayout({ children }: { children: ReactNode }) {
   const { data } = useSambut();
   const [open, setOpen] = useState(false);
@@ -11,8 +12,13 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   const nav = [
     ["Acara", "/"],
     ["Jadwal", "/event/schedule"],
-    ["Kesan & Pesan", "/event/messages"],
   ] as const;
+
+  // Nomor cadangan langsung jika data.settings.contact kosong
+  const fallbackContact = "+62812-8866-6916";
+  const contactNumber = data?.settings?.contact || fallbackContact;
+  const formattedWaNumber = contactNumber.replace(/^0/, "62").replace(/\D/g, "");
+
   return (
     <div className="public-app">
       <header className="public-header">
@@ -33,7 +39,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           <div className="nav-actions">
             <Button asChild className="nav-rsvp" variant="outline">
               <Link to="/rsvp">
-                Konfirmasi Kehadiran
+                Klaim Tiket
                 <ArrowUpRight />
               </Link>
             </Button>
@@ -63,36 +69,29 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           <nav className="footer-navigation" aria-label="Navigasi footer">
             <strong>Jelajahi</strong>
             {nav.map(([label, to]) => (
-              <Link key={to} to={to}>
+              <Link key={to} to={to}> 
                 {label}
               </Link>
             ))}
-            <Link to="/rsvp">Konfirmasi Kehadiran</Link>
+            <Link to="/rsvp">Klaim Tiket</Link>
           </nav>
           <div className="footer-contact">
             <strong>Hubungi Kami</strong>
-            {data.settings.contact ? (
-              <a
-                href={`https://wa.me/${data.settings.contact.replace(/^0/, "62").replace(/\D/g, "")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-               {data.settings.contact}
-              </a>
-            ) : (
-              <span>Kontak panitia segera diumumkan</span>
-            )}
-          
+            <a
+              href={`https://wa.me/${formattedWaNumber}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {contactNumber}
+            </a>
           </div>
         </div>
         <div className="page-width footer-bottom">
-          <span>© 2026 GenZ Indonesia. Seluruh hak cipta dilindungi.<Link to="/admin/login" className="admin-access">
-            Akses Panitia 
-          </Link></span>
+          © 2026 GenZ Indonesia. Seluruh hak cipta dilindungi. <Link to="/admin/login" className="admin-acces">
+          akses panitia
+          </Link>
           <span>
-            <Flower2 size={13} /> Dibuat dengan semangat Indonesia
-
-            
+            <Flower2 size={13} /> 
           </span>
         </div>
       </footer>

@@ -66,7 +66,7 @@ export function DashboardPage() {
     <AdminLayout>
       <div className="admin-title-row">
         <div>
-          <div className="admin-greeting">SUGENG RAWUH, PANITIA MHSWR 2026</div>
+          <div className="admin-greeting">Selamat Datang, PANITIA MHSWR 2026</div>
           <h1>Setiap tamu, sebuah cerita.</h1>
           <p>Pantau undangan dan sambut setiap kehadiran dengan lebih bermakna.</p>
         </div>
@@ -179,7 +179,7 @@ export function DashboardPage() {
           <div className="panel-header">
             <div>
               <h2>Undangan Terbaru</h2>
-              <p>Ringkasan undangan dan konfirmasi kehadiran</p>
+              <p>Ringkasan undangan dan irmasi kehadiran</p>
             </div>
             <Button asChild size="sm" variant="ghost">
               <Link to="/admin/invitations">

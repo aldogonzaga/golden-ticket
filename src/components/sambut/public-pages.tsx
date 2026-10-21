@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -15,11 +15,12 @@ import {
   Printer,
   Share2,
   Copy,
-  Check,
   Ticket,
   Maximize,
   Volume2,
   VolumeX,
+  X,
+  CalendarPlus,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
@@ -27,24 +28,32 @@ import { Button } from "@/components/ui/button";
 import templeImage from "@/assets/borobudur-dawn.jpg";
 import maheswaraGroupPhoto from "@/assets/mhs.jpeg";
 import medleyMusic from "@/assets/Medley.mp3";
+import popupImage from "@/assets/PopUp1.jpeg";
+import background2Image from "@/assets/background2.jpeg";
 import {
   useSambut,
   blankInvitation,
   newInvitation,
-  categories,
-  type Category,
   type Invitation,
-  type Rsvp,
 } from "@/lib/sambut/store";
 import { eventDate, inviteURL } from "@/lib/sambut/utils";
 import { PublicLayout } from "./public-layout";
 import { SectionLabel, ArrowLink, Brand, Badge, RsvpBadge, Empty, copyText } from "./shared";
+
 export const schedule = [
   ["08.00 – 09.00", "Sugeng Rawuh", "Registrasi tamu, penyambutan, dan pembukaan gerbang acara."],
   ["09.00 – 09.30", "Harmoni Pembuka", "Pembukaan dan persembahan seni budaya Nusantara."],
   ["09.30 – 11.00", "Panggung Prestasi", "Selebrasi karya, potensi, dan pencapaian generasi muda."],
   ["11.00 – 12.00", "Langkah Bersama", "Penandatanganan MOU, ramah tamah, dan penutupan."],
 ];
+
+// URL Google Calendar dengan Waktu Acara
+const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
+  "Opening PPDB & SemiFinal Maheswara Maheswari 2027"
+)}&dates=20261024T060000Z/20261024T080000Z&details=${encodeURIComponent(
+  "Merangkai mimpi, merayakan potensi, dan melangkah bersama dalam kehangatan budaya Indonesia."
+)}&location=${encodeURIComponent("Milenia Hub - Platinum Cineplex")}`;
+
 function Countdown() {
   const { data } = useSambut();
   const [now, setNow] = useState<number | null>(null);
@@ -53,14 +62,25 @@ function Countdown() {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
   if (!data.settings.date || now === null)
     return (
       <div>
-        <div className="fact-label">MENUJU HARI ISTIMEWA</div>
-        <div className="fact-value">Sebuah perayaan sedang disiapkan</div>
-        <div className="fact-note">Nantikan pengumuman tanggal acara</div>
+        <div className="fact-value">Waktu</div>
+        <div className="fact-note">
+          <a
+            href={googleCalendarUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline text-inherit inline-flex items-center gap-1"
+            title="Simpan Jam Acara ke Kalender"
+          >
+            13.00 - 15.00 WIB <CalendarPlus size={14} />
+          </a>
+        </div>
       </div>
     );
+
   const diff = Math.max(0, new Date(data.settings.date).getTime() - now);
   if (!diff)
     return (
@@ -69,12 +89,14 @@ function Countdown() {
         <div className="fact-value">Waktunya merayakan bersama</div>
       </div>
     );
+
   const parts = [
     Math.floor(diff / 86400000),
     Math.floor(diff / 3600000) % 24,
     Math.floor(diff / 60000) % 60,
     Math.floor(diff / 1000) % 60,
   ];
+
   return (
     <div className="countdown">
       {parts.map((p, i) => (
@@ -86,12 +108,19 @@ function Countdown() {
     </div>
   );
 }
+
 export function HomePage() {
-  const { data } = useSambut();
+  const { data, ready } = useSambut();
+  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const invitationCode = new URLSearchParams(searchStr).get("undangan");
+  const invitation = invitationCode
+    ? data.invitations.find((item) => item.code === invitationCode && !item.cancelled)
+    : undefined;
   const revealRoot = useRef<HTMLElement>(null);
   const musicRef = useRef<HTMLAudioElement>(null);
   const [curtainStage, setCurtainStage] = useState<"closed" | "opening" | "done">("closed");
   const [musicPlaying, setMusicPlaying] = useState(false);
+
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setCurtainStage("done");
@@ -104,6 +133,7 @@ export function HomePage() {
       window.clearTimeout(finishTimer);
     };
   }, []);
+
   useEffect(() => {
     const root = revealRoot.current;
     if (!root) return;
@@ -132,6 +162,7 @@ export function HomePage() {
     });
     return () => observer.disconnect();
   }, []);
+
   function toggleMusic() {
     const audio = musicRef.current;
     if (!audio) return;
@@ -141,6 +172,7 @@ export function HomePage() {
       audio.pause();
     }
   }
+
   return (
     <PublicLayout>
       <main className="public-home" ref={revealRoot}>
@@ -168,49 +200,90 @@ export function HomePage() {
               Indonesia.
             </p>
             <div className="hero-buttons">
-              <Button asChild size="lg">
-                <a href="#konfirmasi-kehadiran">
-                  Konfirmasi Kehadiran <ArrowUpRight />
-                </a>
-              </Button>
+              {invitation ? (
+                <Button asChild size="lg">
+                  <Link to="/ticket/$code" params={{ code: invitation.code }}>
+                    Klaim Tiket Undangan <ArrowUpRight />
+                  </Link>
+                </Button>
+              ) : invitationCode && ready ? (
+                <p className="field-note" role="alert">
+                  Undangan tidak ditemukan atau sudah dibatalkan. Silakan hubungi panitia.
+                </p>
+              ) : invitationCode ? (
+                <p className="field-note" role="status">
+                  Memuat undangan…
+                </p>
+              ) : (
+                <Button asChild size="lg">
+                  <a href="#Klaim Tiket">
+                    Klaim Tiket <ArrowUpRight />
+                  </a>
+                </Button>
+              )}
               <Button asChild size="lg" variant="outline" className="outline-hero">
                 <a href="#rundown-acara">
                   Detail Acara <ArrowRight />
                 </a>
               </Button>
             </div>
-            
           </div>
-        
         </section>
+
         <section className="event-facts">
           <div className="page-width facts-grid" data-reveal>
+            {/* Waktu Perayaan */}
             <div className="fact">
               <CalendarDays />
               <div>
-                <div className="fact-label">WAKTU PERAYAAN</div>
                 <div className="fact-value">{eventDate(data.settings.date)}</div>
                 <div className="fact-note">
-                  {data.settings.date ? "Simpan tanggal istimewanya" : "Informasi resmi menyusul"}
+                  <a
+                    href={googleCalendarUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline text-inherit inline-flex items-center gap-1"
+                    title="Simpan tanggal istimewanya ke Kalender"
+                  >
+                    {data.settings.date
+                      ? "Simpan tanggal istimewanya"
+                      : "24 October 2026 Dan 31 October 2026"}{" "}
+                    <CalendarPlus size={14} />
+                  </a>
                 </div>
               </div>
             </div>
+
+            {/* Tempat Pertemuan */}
             <div className="fact">
               <MapPin />
               <div>
-                <div className="fact-label">TEMPAT KITA BERTEMU</div>
                 <div className="fact-value">
-                  {data.settings.location || "Lokasi segera diumumkan"}
+                  {data.settings.location || "Lokasi Acara"}
                 </div>
-                <div className="fact-note">{data.settings.school} · Maheswara Maheswari 2027</div>
+                <div className="fact-note">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                      "Milenia Hub Platinum Cineplex"
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline text-inherit inline-flex items-center gap-1"
+                  >
+                    Milenia Hub - Platinum Cineplex ↗
+                  </a>
+                </div>
               </div>
             </div>
+
+            {/* Jam & Countdown */}
             <div className="fact">
               <Clock3 />
               <Countdown />
             </div>
           </div>
         </section>
+
         <section className="about-section" id="tentang">
           <div className="page-width">
             <div className="home-story-layout">
@@ -283,39 +356,60 @@ export function HomePage() {
             </div>
           </div>
         </section>
-        <section className="preview-section" id="rundown-acara">
-          <div className="page-width">
+
+        {/* Seksi Rangkaian Momen */}
+        <section 
+          className="preview-section relative overflow-hidden bg-cover bg-center bg-no-repeat text-white py-16" 
+          id="rundown-acara"
+          style={{ 
+            backgroundImage: `url(${background2Image})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+          }}
+        >
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-[1px]" />
+
+          <div className="page-width relative z-10">
             <div className="section-top">
               <div data-reveal>
                 <SectionLabel>RANGKAIAN MOMEN</SectionLabel>
-                <h2 className="display-heading">Setiap momen, punya cerita.</h2>
+                <h2 className="display-heading text-white">Setiap momen, punya cerita.</h2>
               </div>
               <ArrowLink to="/event/schedule">Lihat jadwal lengkap</ArrowLink>
             </div>
             <div className="schedule-preview">
               {schedule.map(([time, title, text], index) => (
                 <article className="schedule-step" key={title} data-reveal>
-                  <time>{time} WIB</time>
+                  <time className="text-white font-semibold drop-shadow">{time} WIB</time>
                   <div className="schedule-marker" aria-hidden="true">
                     {String(index + 1).padStart(2, "0")}
                   </div>
                   <div className="schedule-copy">
-                    <h3>{title}</h3>
-                    <p>{text}</p>
+                    <h3 className="text-white font-bold text-xl drop-shadow">{title}</h3>
+                    <p className="text-gray-100 font-normal drop-shadow-sm">{text}</p>
                   </div>
                 </article>
               ))}
             </div>
-            <p className="field-note mt-7" data-reveal>
+            <p className="field-note mt-7 text-gray-200" data-reveal>
               *Rancangan jadwal simulasi. Waktu resmi akan diumumkan panitia.
             </p>
           </div>
         </section>
-        <section className="registration-section" id="konfirmasi-kehadiran">
+
+        <section className="messages-section py-12" id="kesan-pesan">
+          <div className="page-width">
+            <MessagesSectionContent />
+          </div>
+        </section>
+
+        <section className="registration-section" id="Klaim Tiket">
           <div className="page-width">
             <EventRegistrationForm />
           </div>
         </section>
+
         {curtainStage !== "done" && (
           <div className={`opening-curtain opening-curtain--${curtainStage}`} aria-hidden="true">
             <div className="curtain-panel curtain-panel-left" />
@@ -359,42 +453,31 @@ export function HomePage() {
     </PublicLayout>
   );
 }
+
 function EventRegistrationForm() {
   const { save } = useSambut();
   const navigate = useNavigate();
-  const [category, setCategory] = useState<Category>("SMP");
-  const [name, setName] = useState("");
-  const [institution, setInstitution] = useState("");
-  const [title, setTitle] = useState("");
-  const [phone, setPhone] = useState("");
-  const [rsvp, setRsvp] = useState<Rsvp>("Hadir");
-  const isSchool = category === "SMP";
+  const [showPromoPopup, setShowPromoPopup] = useState(false);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  function handleInitialSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const attendeeName = name.trim();
-    const attendeeInstitution = institution.trim();
+    setShowPromoPopup(true);
+  }
+
+  function confirmAndGetTicket() {
+    setShowPromoPopup(false);
     const invitation = newInvitation({
       ...blankInvitation(),
-      name: isSchool ? attendeeInstitution : attendeeName,
-      category,
-      institution: attendeeInstitution,
-      principal: isSchool ? attendeeName : "",
-      pic: isSchool ? attendeeName : "",
-      title: title.trim(),
-      phone: phone.trim(),
+      name: "Tamu Undangan",
+      category: "VIP",
+      institution: "Umum",
+      principal: "",
+      pic: "",
+      title: "",
+      phone: "-",
       quota: 1,
-      members: isSchool
-        ? [
-            {
-              id: crypto.randomUUID(),
-              name: attendeeName,
-              role: "Perwakilan sekolah",
-              present: false,
-            },
-          ]
-        : [],
-      rsvp,
+      members: [],
+      rsvp: "Hadir",
     });
     save(invitation);
     navigate({ to: "/ticket/$code", params: { code: invitation.code } });
@@ -402,91 +485,56 @@ function EventRegistrationForm() {
 
   return (
     <div className="registration-content">
-      <div className="registration-heading" data-reveal>
-        <SectionLabel>MENJADI BAGIAN DARI CERITA</SectionLabel>
-        <h2>Mari hadir. Mari merayakan.</h2>
-        <p>Isi data singkat untuk menyimpan konfirmasi dan mendapatkan tiket acara.</p>
-      </div>
-      <form className="form-panel registration-form" onSubmit={submit} data-reveal>
-        <div className="form-grid">
-          <label className="field">
-            <span>Jenis undangan</span>
-            <select
-              value={category}
-              onChange={(event) => setCategory(event.target.value as Category)}
+      {showPromoPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="relative max-w-sm w-full bg-neutral-900 rounded-2xl overflow-hidden shadow-2xl border border-neutral-800">
+            <button
+              onClick={() => setShowPromoPopup(false)}
+              className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/70 text-white hover:bg-black transition-colors"
+              aria-label="Tutup pop-up"
             >
-              {categories.map((item) => (
-                <option key={item} value={item}>
-                  {item === "SMP" ? "Sekolah" : item}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>{isSchool ? "Nama kepala sekolah / perwakilan" : "Nama lengkap"}</span>
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Nama sesuai identitas"
-              required
-            />
-          </label>
-          <label className="field full">
-            <span>{isSchool ? "Nama sekolah" : "Instansi / sekolah"}</span>
-            <input
-              value={institution}
-              onChange={(event) => setInstitution(event.target.value)}
-              placeholder={isSchool ? "Nama sekolah Anda" : "Nama instansi atau sekolah"}
-              required
-            />
-          </label>
-          {(category === "Guru" || category === "VIP") && (
-            <label className="field">
-              <span>Jabatan / gelar (opsional)</span>
-              <input value={title} onChange={(event) => setTitle(event.target.value)} />
-            </label>
-          )}
-          <label className="field">
-            <span>Nomor WhatsApp (opsional)</span>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder="08xxxxxxxxxx"
-            />
-          </label>
-          <div className="field full">
-            <span>Konfirmasi kehadiran</span>
-            <div className="rsvp-choices">
-              <Button
-                type="button"
-                variant={rsvp === "Hadir" ? "default" : "outline"}
-                aria-pressed={rsvp === "Hadir"}
-                onClick={() => setRsvp("Hadir")}
+              <X size={20} />
+            </button>
+
+            <div className="relative">
+              <img
+                src={popupImage}
+                alt="Nobar Movie Package Platinum Cineplex"
+                className="w-full h-auto object-cover max-h-[70vh]"
+              />
+            </div>
+
+            <div className="p-4 bg-neutral-900 text-center">
+              <Button 
+                onClick={confirmAndGetTicket} 
+                className="w-full text-sm font-semibold"
               >
-                <Check /> Saya Hadir
-              </Button>
-              <Button
-                type="button"
-                variant={rsvp === "Tidak Hadir" ? "default" : "outline"}
-                aria-pressed={rsvp === "Tidak Hadir"}
-                onClick={() => setRsvp("Tidak Hadir")}
-              >
-                Tidak Hadir
+                Lanjutkan ke Tiket Saya
               </Button>
             </div>
           </div>
         </div>
-        <Button type="submit" className="w-full mt-5">
-          Cari Tiket Saya <Ticket />
+      )}
+
+      <div className="registration-heading" data-reveal>
+        <SectionLabel>MENJADI BAGIAN DARI CERITA</SectionLabel>
+        <h2>Mari hadir. Mari merayakan.</h2>
+        <p>Klik tombol di bawah untuk langsung mendapatkan tiket acara.</p>
+      </div>
+      
+      <form className="form-panel registration-form" onSubmit={handleInitialSubmit} data-reveal>
+        <Button type="submit" className="w-full mt-2">
+          Ambil Tiket <Ticket />
         </Button>
-        <p className="field-note mt-4">
-          Status kehadiran dan data undangan akan tercatat pada daftar admin.
+        
+        <p className="field-note mt-4 text-center">
+          Status kehadiran dan data undangan akan tercatat secara otomatis.
         </p>
       </form>
     </div>
   );
 }
+
 const titah = {
   heading: ["Menjaga Marwah,", "Mencetak Sejarah"],
   author: "Dr. Darmawan Sunarja, Drs., MM.Par",
@@ -494,6 +542,7 @@ const titah = {
   id: "Selamat datang di SMK Metland Cibitung. Terima kasih telah menjadi bagian dari Generasi Cinta Prestasi (GCP) yang bukan hanya sekadar capaian akademis, melainkan komitmen untuk memanggul warisan luhur budaya nusantara di tengah pusaran modernitas. Kami memadukan disiplin tinggi dengan tata krama budaya ketimuran untuk memastikan setiap lulusan tidak hanya terampil, tetapi juga berkarakter unggul.",
   jv: "Sugeng rawuh ing SMK Metland Cibitung. Matur nuwun sampun dados pérangan saking Generasi Cinta Prestasi (GCP). GCP boten namung babagan prestasi, nanging ugi babagan nguri-uri budaya lan nilai-nilai luhur Nusantara ing tengahing perkembangan jaman. Ing sekolah kita, kedisiplinan lan tata krama dados landhesan kangge mbentuk para lulusan ingkang trampil, kompeten, saha gadhah budi pekerti lan karakter ingkang unggul.",
 };
+
 export function TitahSection() {
   const { data } = useSambut();
   const [playing, setPlaying] = useState<"" | "id" | "jv">("");
@@ -574,6 +623,7 @@ export function TitahSection() {
     </section>
   );
 }
+
 export function SchedulePage() {
   return (
     <PublicLayout>
@@ -608,8 +658,10 @@ export function SchedulePage() {
     </PublicLayout>
   );
 }
-export function MessagesPage() {
+
+function MessagesSectionContent() {
   const { data, addMessage } = useSambut();
+
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -621,17 +673,39 @@ export function MessagesPage() {
     e.currentTarget.reset();
     toast.success("Pesan Anda telah ditambahkan");
   }
+
+  const marqueeMessages = [...data.messages, ...data.messages];
+
   return (
-    <PublicLayout>
-      <main className="page-width inner-page">
-        <SectionLabel>SUARA & HARAPAN</SectionLabel>
-        <h1 className="page-heading">Kata yang menghangatkan.</h1>
-        <p className="page-intro">
-          Titipkan doa, semangat, dan harapan untuk Maheswara Maheswari 2027.
-        </p>
-        <div className="message-grid">
-          {data.messages.map((m, i) => (
-            <article className="message-card" key={i}>
+    <div>
+      <style>{`
+        @keyframes marqueeAuto {
+          0% { transform: translateX(0%); }
+          100% { transform: translateX(-50%); }
+        }
+        .marquee-track {
+          display: flex !important;
+          width: max-content !important;
+          animation: marqueeAuto 22s linear infinite !important;
+        }
+        .marquee-track:hover {
+          animation-play-state: paused !important;
+        }
+      `}</style>
+
+      <SectionLabel>SUARA & HARAPAN</SectionLabel>
+      <h1 className="page-heading mb-2">yang menghangatkan.</h1>
+      <p className="page-intro mb-8">
+        Titipkan doa, semangat, dan harapan untuk Maheswara Maheswari 2027.
+      </p>
+
+      <div className="relative w-full overflow-hidden mb-10 py-4 no-scrollbar">
+        <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-16 bg-gradient-to-r from-black to-transparent" />
+        <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-16 bg-gradient-to-l from-black to-transparent" />
+
+        <div className="marquee-track gap-6">
+          {marqueeMessages.map((m, i) => (
+            <article className="message-card w-[320px] shrink-0" key={i}>
               <Quote />
               <blockquote>“{m.text}”</blockquote>
               <div className="message-author">
@@ -641,38 +715,50 @@ export function MessagesPage() {
             </article>
           ))}
         </div>
-        <form className="form-panel" onSubmit={submit}>
-          <h2>Tinggalkan sebuah pesan.</h2>
-          <div className="field">
-            <span>Nama Anda</span>
-            <input
-              name="name"
-              aria-label="Nama Anda"
-              required
-              maxLength={80}
-              placeholder="Nama lengkap"
-            />
-          </div>
-          <div className="field mt-5">
-            <span>Kesan & pesan</span>
-            <textarea
-              name="text"
-              aria-label="Kesan dan pesan"
-              required
-              maxLength={500}
-              placeholder="Tuliskan harapan terbaik Anda…"
-            />
-          </div>
-          <div className="form-actions">
-            <Button type="submit">
-              Kirim Pesan <ArrowUpRight />
-            </Button>
-          </div>
-        </form>
+      </div>
+
+      <form className="form-panel" onSubmit={submit}>
+        <h2>Tinggalkan sebuah pesan.</h2>
+        <div className="field mt-4">
+          <span>Nama Anda</span>
+          <input
+            name="name"
+            aria-label="Nama Anda"
+            required
+            maxLength={80}
+            placeholder="Nama lengkap"
+          />
+        </div>
+        <div className="field mt-5">
+          <span>Kesan & pesan</span>
+          <textarea
+            name="text"
+            aria-label="Kesan dan pesan"
+            required
+            maxLength={500}
+            placeholder="Tuliskan harapan terbaik Anda…"
+          />
+        </div>
+        <div className="form-actions mt-5">
+          <Button type="submit">
+            Kirim Pesan <ArrowUpRight />
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+export function MessagesPage() {
+  return (
+    <PublicLayout>
+      <main className="page-width inner-page">
+        <MessagesSectionContent />
       </main>
     </PublicLayout>
   );
 }
+
 export function RsvpPage() {
   return (
     <PublicLayout>
@@ -684,6 +770,7 @@ export function RsvpPage() {
     </PublicLayout>
   );
 }
+
 function ticketIdentity(item: Invitation) {
   const name = item.category === "SMP" ? item.principal || item.name : item.name;
   const institution = item.category === "SMP" ? item.name : item.institution;
@@ -698,12 +785,15 @@ function ticketIdentity(item: Invitation) {
           : `${item.relationship || "Orang Tua"} / Wali`);
   return { name, institution, role };
 }
+
 export function GoldenTicket({
   item,
   member,
+  customName,
 }: {
   item: Invitation;
   member?: { name: string; role: string };
+  customName?: string;
 }) {
   const { data } = useSambut();
   const identity = ticketIdentity(item);
@@ -716,9 +806,10 @@ export function GoldenTicket({
         hour: "2-digit",
         minute: "2-digit",
       })
-    : "Tanggal dan waktu segera diumumkan";
+    : "Tanggal dan waktu ";
   const progress = Math.min(100, Math.round((item.checked / Math.max(1, item.quota)) * 100));
-  const ticketName = member?.name ?? (item.category === "SMP" ? item.name : identity.name);
+  const ticketName = customName || member?.name || (item.category === "SMP" ? item.name : identity.name);
+
   return (
     <div className="ticket" id="golden-ticket">
       <div className="ticket-top">
@@ -795,11 +886,14 @@ export function GoldenTicket({
     </div>
   );
 }
-export function TicketPage({ code }: { code: string }) {
+
+export function TicketPage({ code, customName }: { code: string; customName?: string }) {
   const { data, ready } = useSambut();
   const ref = useRef<HTMLDivElement>(null);
   const item = data.invitations.find((i) => i.code === code && !i.cancelled);
   const identity = item ? ticketIdentity(item) : { name: "", institution: "", role: "" };
+  const displayName = customName || identity.name || "Tamu Undangan";
+
   async function download() {
     if (!ref.current) return;
     const ticket = ref.current.querySelector<HTMLElement>(".ticket");
@@ -820,6 +914,7 @@ export function TicketPage({ code }: { code: string }) {
       toast.error("Unduhan gagal. Gunakan Cetak / PDF sebagai alternatif.");
     }
   }
+
   return (
     <PublicLayout>
       <main className="ticket-page">
@@ -835,14 +930,14 @@ export function TicketPage({ code }: { code: string }) {
                   <SectionLabel>TIKET DIGITAL · {item.category.toUpperCase()}</SectionLabel>
                   <h1>Golden Ticket</h1>
                   <p>
-                    Undangan untuk <strong>{identity.name}</strong>. Tunjukkan QR ini kepada panitia
+                    Undangan untuk <strong>{displayName}</strong>. Tunjukkan QR ini kepada panitia
                     saat tiba di lokasi.
                   </p>
                 </div>
                 <Badge tone="gold">{item.rsvp === "Tidak Hadir" ? "Tidak Hadir" : item.rsvp}</Badge>
               </header>
               <div className="ticket-page-card" ref={ref}>
-                <GoldenTicket item={item} />
+                <GoldenTicket item={item} customName={displayName} />
               </div>
               <div className="ticket-actions">
                 <Button onClick={download}>
@@ -861,7 +956,7 @@ export function TicketPage({ code }: { code: string }) {
                   variant="outline"
                   onClick={() =>
                     window.open(
-                      `https://wa.me/?text=${encodeURIComponent(`Anda diundang ke ${data.settings.name}. ${inviteURL(code)}`)}`,
+                      `https://wa.me/?text=${encodeURIComponent(`Anda diundang ke ${data.settings.name}.${inviteURL(code)}`)}`,
                       "_blank",
                       "noopener,noreferrer",
                     )
