@@ -26,7 +26,7 @@ const nav = [
   ["Pengaturan", "/admin/settings", Settings],
 ] as const;
 export function AdminLayout({ children }: { children: ReactNode }) {
-  const { loggedIn, ready, logout } = useSambut();
+  const { loggedIn, ready, logout, connectedToDb } = useSambut();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [collapsed, setCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -56,8 +56,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               <span>Keluar</span>
             </Link>
           </nav>
-          <div className="demo-label">
-            <span /> MODE DEMO · DATA LOKAL
+          <div className="demo-label" title={connectedToDb ? "Terhubung ke Database MySQL (Laravel 12)" : "Mode Demo Offline"}>
+            <span style={connectedToDb ? { background: "#10b981" } : {}} />
+            {connectedToDb ? "TERHUBUNG · MYSQL" : "MODE DEMO · DATA LOKAL"}
           </div>
         </div>
       </aside>

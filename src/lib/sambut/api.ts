@@ -192,6 +192,10 @@ export async function addMessageApi(message: { name: string; text: string; categ
   });
 }
 
+export async function getActivitiesApi() {
+  return request<{ success: boolean; data: Activity[] }>("/activities");
+}
+
 // ----------------- Settings & Stats -----------------
 export async function getSettingsApi() {
   return request<{ success: boolean; data: Settings }>("/settings");
