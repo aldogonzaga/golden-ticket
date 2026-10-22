@@ -111,11 +111,20 @@ function Countdown() {
 
 export function HomePage() {
   const { data, ready } = useSambut();
+  const navigate = useNavigate();
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const invitationCode = new URLSearchParams(searchStr).get("undangan");
   const invitation = invitationCode
     ? data.invitations.find((item) => item.code === invitationCode && !item.cancelled)
     : undefined;
+
+  // Tambahkan efek ini agar langsung mengalihkan ke Golden Ticket yang sesuai
+  useEffect(() => {
+    if (invitation) {
+      navigate({ to: "/ticket/$code", params: { code: invitation.code }, replace: true });
+    }
+  }, [invitation, navigate]);
+
   const revealRoot = useRef<HTMLElement>(null);
   const musicRef = useRef<HTMLAudioElement>(null);
   const [curtainStage, setCurtainStage] = useState<"closed" | "opening" | "done">("closed");
@@ -358,10 +367,10 @@ export function HomePage() {
         </section>
 
         {/* Seksi Rangkaian Momen */}
-        <section 
-          className="preview-section relative overflow-hidden bg-cover bg-center bg-no-repeat text-white py-16" 
+        <section
+          className="preview-section relative overflow-hidden bg-cover bg-center bg-no-repeat text-white py-16"
           id="rundown-acara"
-          style={{ 
+          style={{
             backgroundImage: `url(${background2Image})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
@@ -505,8 +514,8 @@ function EventRegistrationForm() {
             </div>
 
             <div className="p-4 bg-neutral-900 text-center">
-              <Button 
-                onClick={confirmAndGetTicket} 
+              <Button
+                onClick={confirmAndGetTicket}
                 className="w-full text-sm font-semibold"
               >
                 Lanjutkan ke Tiket Saya
@@ -521,12 +530,12 @@ function EventRegistrationForm() {
         <h2>Mari hadir. Mari merayakan.</h2>
         <p>Klik tombol di bawah untuk langsung mendapatkan tiket acara.</p>
       </div>
-      
+
       <form className="form-panel registration-form" onSubmit={handleInitialSubmit} data-reveal>
         <Button type="submit" className="w-full mt-2">
           Ambil Tiket <Ticket />
         </Button>
-        
+
         <p className="field-note mt-4 text-center">
           Status kehadiran dan data undangan akan tercatat secara otomatis.
         </p>
@@ -799,13 +808,13 @@ export function GoldenTicket({
   const identity = ticketIdentity(item);
   const dateTime = data.settings.date
     ? new Date(data.settings.date).toLocaleString("id-ID", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
     : "Tanggal dan waktu ";
   const progress = Math.min(100, Math.round((item.checked / Math.max(1, item.quota)) * 100));
   const ticketName = customName || member?.name || identity.name;
