@@ -413,11 +413,13 @@ export function HomePage() {
           </div>
         </section>
 
-        <section className="registration-section" id="Klaim Tiket">
-          <div className="page-width">
-            <EventRegistrationForm />
-          </div>
-        </section>
+        {!invitationCode && (
+          <section className="registration-section" id="Klaim Tiket">
+            <div className="page-width">
+              <EventRegistrationForm />
+            </div>
+          </section>
+        )}
 
         {curtainStage !== "done" && (
           <div className={`opening-curtain opening-curtain--${curtainStage}`} aria-hidden="true">
