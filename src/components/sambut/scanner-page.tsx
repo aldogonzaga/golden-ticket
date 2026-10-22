@@ -92,7 +92,7 @@ export function ScanAlertModal({
               {item.name}
             </h3>
             <p className="text-xs text-muted-foreground mt-1">
-              {item.category === "SMP" ? item.principal : item.institution || "Tamu Undangan"}
+              {item.category === "SMP" ? (item.principal ? `${item.principal} \u00b7 Kepala Sekolah` : "Kepala Sekolah") : item.institution || "Tamu Undangan"}
             </p>
 
             {/* Grid Informasi Tamu */}
@@ -206,7 +206,7 @@ export function CheckInPanel({
 
       <h2 className="text-2xl font-bold leading-tight">{item.name}</h2>
       <p className="text-muted-foreground mt-1 text-sm">
-        {item.category === "SMP" ? item.principal : item.institution || "Tamu Undangan"}
+        {item.category === "SMP" ? (item.principal ? `${item.principal} \u00b7 Kepala Sekolah` : "Kepala Sekolah") : item.institution || "Tamu Undangan"}
         <br />
         <span className="font-mono text-xs bg-muted/60 px-1.5 py-0.5 rounded text-foreground font-semibold">
           {item.code}
@@ -334,6 +334,7 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
       }
       return item;
     } else {
+      playScanBeep();
       toast.info(`${item.name} sudah check-in lengkap sebelumnya (${item.checked}/${item.quota})`);
       return item;
     }

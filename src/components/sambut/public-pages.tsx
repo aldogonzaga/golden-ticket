@@ -772,12 +772,12 @@ export function RsvpPage() {
 }
 
 function ticketIdentity(item: Invitation) {
-  const name = item.category === "SMP" ? item.principal || item.name : item.name;
-  const institution = item.category === "SMP" ? item.name : item.institution;
+  const name = item.name;
+  const institution = item.category === "SMP" ? (item.principal || "") : item.institution;
   const role =
     item.title ||
     (item.category === "SMP"
-      ? "Kepala Sekolah"
+      ? item.principal ? `${item.principal} · Kepala Sekolah` : "Kepala Sekolah"
       : item.category === "Guru"
         ? "Guru / Pendidik"
         : item.category === "VIP"
@@ -808,7 +808,7 @@ export function GoldenTicket({
       })
     : "Tanggal dan waktu ";
   const progress = Math.min(100, Math.round((item.checked / Math.max(1, item.quota)) * 100));
-  const ticketName = customName || member?.name || (item.category === "SMP" ? item.name : identity.name);
+  const ticketName = customName || member?.name || identity.name;
 
   return (
     <div className="ticket" id="golden-ticket">
