@@ -201,9 +201,17 @@ export function SchoolLinksPage() {
                     <div className="text-muted-foreground">{s.code}</div>
                   </td>
                   <td className="p-3">
-                    {s.members.length}/{s.quota}
+                    {s.checked}/{s.quota}
                   </td>
-                  <td className="p-3">{s.checked}</td>
+                  <td className="p-3">
+                    <Badge tone={s.checked === 0 ? "muted" : s.checked >= s.quota ? "success" : "gold"}>
+                      {s.checked === 0
+                        ? "Belum hadir"
+                        : s.checked >= s.quota
+                          ? `✓ Penuh`
+                          : `${s.checked} hadir`}
+                    </Badge>
+                  </td>
                   <td className="p-3">
                     <div className="flex flex-wrap gap-1">
                       <Button size="sm" variant="outline" onClick={() => copyText(schoolURL(s.code))}>

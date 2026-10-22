@@ -234,21 +234,19 @@ export function InvitationsPage({ category }: { category?: Category }) {
                       {i.quota} Orang
                     </span>
                     <span className="table-sub block text-[11px] text-muted-foreground">
-                      {i.category === "SMP"
-                        ? `${i.members.length} dari ${i.quota} nama terdaftar`
-                        : "Kuota perorangan"}
+                      Terisi {i.checked} dari {i.quota} orang
                     </span>
                   </td>
                   <td>
                     <RsvpBadge value={i.rsvp} />
                   </td>
                   <td>
-                    <Badge tone={i.checked ? "success" : "muted"}>
-                      {i.checked
-                        ? i.checked === i.quota
-                          ? `Hadir lengkap (${i.checked})`
-                          : `Hadir ${i.checked}/${i.quota}`
-                        : "Belum hadir"}
+                    <Badge tone={i.checked === 0 ? "muted" : i.checked >= i.quota ? "success" : "gold"}>
+                      {i.checked === 0
+                        ? "Belum hadir"
+                        : i.checked >= i.quota
+                          ? `✓ Hadir lengkap (${i.checked}/${i.quota})`
+                          : `Hadir ${i.checked}/${i.quota}`}
                     </Badge>
                   </td>
                   <td>

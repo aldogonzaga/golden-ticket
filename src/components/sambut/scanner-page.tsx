@@ -30,13 +30,17 @@ function playScanBeep() {
  */
 export function ScanAlertModal({
   item,
+  wasAlreadyFull,
   onContinueScan,
 }: {
   item: Invitation;
+  wasAlreadyFull?: boolean;
   onContinueScan: () => void;
 }) {
   const isFull = item.checked >= item.quota;
   const isCancelled = item.cancelled;
+  // Denied state: cancelled OR was already full before this scan (re-scan)
+  const isDenied = isCancelled || wasAlreadyFull;
 
   return (
     <DialogPrimitive.Root
@@ -55,10 +59,12 @@ export function ScanAlertModal({
           <header className="flex items-center justify-between border-b border-border/80 px-5 py-4">
             <DialogPrimitive.Title asChild>
               <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-md bg-primary/10 text-primary">
+                <span className={`p-1.5 rounded-md ${isDenied ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"}`}>
                   <ScanLine size={18} />
                 </span>
-                <span className="font-semibold text-base">Konfirmasi Kehadiran Tamu</span>
+                <span className="font-semibold text-base">
+                  {isDenied ? "Kehadiran Ditolak" : "Konfirmasi Kehadiran Tamu"}
+                </span>
               </div>
             </DialogPrimitive.Title>
             <Button variant="ghost" size="icon" onClick={onContinueScan} aria-label="Tutup pop up">
@@ -68,9 +74,13 @@ export function ScanAlertModal({
 
           <div className="p-6 text-center">
             {/* Animated Icon & Badge */}
-            {isCancelled ? (
-              <div className="w-16 h-16 rounded-full bg-destructive/15 text-destructive border border-destructive/30 flex items-center justify-center mx-auto mb-3">
+            {isDenied ? (
+              <div className="w-16 h-16 rounded-full bg-destructive/15 text-destructive border border-destructive/30 flex items-center justify-center mx-auto mb-3 animate-in zoom-in-75 duration-200">
                 <AlertTriangle className="w-9 h-9" />
+              </div>
+            ) : isFull ? (
+              <div className="w-16 h-16 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto mb-3 animate-in zoom-in-75 duration-200">
+                <CheckCircle2 className="w-9 h-9" />
               </div>
             ) : (
               <div className="w-16 h-16 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto mb-3 animate-in zoom-in-75 duration-200">
@@ -81,6 +91,8 @@ export function ScanAlertModal({
             <div className="mb-2">
               {isCancelled ? (
                 <Badge tone="danger">Undangan Dibatalkan</Badge>
+              ) : wasAlreadyFull ? (
+                <Badge tone="danger">✗ Kuota Sudah Penuh — Ditolak</Badge>
               ) : isFull ? (
                 <Badge tone="success">✓ Berhasil di-Scan & Terkonfirmasi</Badge>
               ) : (
@@ -125,13 +137,20 @@ export function ScanAlertModal({
               )}
               <div className="col-span-2 border-t border-border/40 pt-1.5 mt-1 flex justify-between items-center">
                 <span className="text-muted-foreground text-[11px]">Status Kehadiran:</span>
-                <span className="font-bold text-emerald-400 text-sm">
+                <span className={`font-bold text-sm ${isDenied ? "text-destructive" : "text-emerald-400"}`}>
                   {item.checked} / {item.quota} Tamu Hadir
+                  {wasAlreadyFull && " (Penuh)"}
                 </span>
               </div>
             </div>
 
-            {item.seat && !isCancelled && (
+            {wasAlreadyFull && !isCancelled && (
+              <div className="mt-3 px-3 py-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+                Tamu ini sudah check-in sebelumnya. Kuota undangan telah terisi penuh.
+              </div>
+            )}
+
+            {item.seat && !isDenied && (
               <div className="mt-3 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-medium">
                 Arahkan tamu ke area duduk: <strong>{item.seat}</strong>
               </div>
@@ -286,6 +305,7 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
     () => data.invitations.find((i) => i.code === initialCode)?.id || "",
   );
   const [alertItem, setAlertItem] = useState<Invitation | null>(null);
+  const [alertWasAlreadyFull, setAlertWasAlreadyFull] = useState(false);
   const [active, setActive] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [error, setError] = useState("");
@@ -303,10 +323,10 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
     };
   }, []);
 
-  function performAutoCheckIn(item: Invitation): Invitation {
+  function performAutoCheckIn(item: Invitation): { result: Invitation; wasAlreadyFull: boolean } {
     if (item.cancelled) {
       toast.error(`Undangan ${item.name} dibatalkan`);
-      return item;
+      return { result: item, wasAlreadyFull: false };
     }
 
     const remaining = item.quota - item.checked;
@@ -327,16 +347,19 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
           unpresent.includes(m.id) ? { ...m, present: true } : m,
         );
         return {
-          ...item,
-          checked: item.checked + countToCheckIn,
-          members: updatedMembers,
+          result: {
+            ...item,
+            checked: item.checked + countToCheckIn,
+            members: updatedMembers,
+          },
+          wasAlreadyFull: false,
         };
       }
-      return item;
+      return { result: item, wasAlreadyFull: false };
     } else {
       playScanBeep();
       toast.info(`${item.name} sudah check-in lengkap sebelumnya (${item.checked}/${item.quota})`);
-      return item;
+      return { result: item, wasAlreadyFull: true };
     }
   }
 
@@ -366,11 +389,12 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
     playScanBeep();
 
     // Otomatis check-in
-    const checkedItem = performAutoCheckIn(item);
+    const { result: checkedItem, wasAlreadyFull } = performAutoCheckIn(item);
 
     // Buka pop-up alert konfirmasi
     setId(item.id);
     setAlertItem(checkedItem);
+    setAlertWasAlreadyFull(wasAlreadyFull);
     setError("");
     setCode(item.code);
     setHistory((h) =>
@@ -423,6 +447,7 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
 
   function handleContinueScan() {
     setAlertItem(null);
+    setAlertWasAlreadyFull(false);
     setId("");
     setCode("");
     setError("");
@@ -433,7 +458,7 @@ export function ScannerPage({ initialCode }: { initialCode?: string }) {
     <AdminLayout>
       {/* Pop-up Alert Modal Hasil Scan */}
       {alertItem && (
-        <ScanAlertModal item={alertItem} onContinueScan={handleContinueScan} />
+        <ScanAlertModal item={alertItem} wasAlreadyFull={alertWasAlreadyFull} onContinueScan={handleContinueScan} />
       )}
 
       <div className="admin-title-row">
