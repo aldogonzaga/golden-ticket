@@ -118,13 +118,6 @@ export function HomePage() {
     ? data.invitations.find((item) => item.code === invitationCode && !item.cancelled)
     : undefined;
 
-  // Tambahkan efek ini agar langsung mengalihkan ke Golden Ticket yang sesuai
-  useEffect(() => {
-    if (invitation) {
-      navigate({ to: "/ticket/$code", params: { code: invitation.code }, replace: true });
-    }
-  }, [invitation, navigate]);
-
   const revealRoot = useRef<HTMLElement>(null);
   const musicRef = useRef<HTMLAudioElement>(null);
   const [curtainStage, setCurtainStage] = useState<"closed" | "opening" | "done">("closed");
