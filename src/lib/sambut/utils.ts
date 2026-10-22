@@ -42,5 +42,5 @@ export function eventDate(date: string) {
     : "Tanggal ";
 }
 export function inviteURL(code: string) {
-  return `${window.location.origin}/?undangan=${encodeURIComponent(code)}`;
+  return `${window.location.origin}/ticket/${encodeURIComponent(code)}`;
 }
